@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Training artifacts
+logs/
+checkpoints/
+models/
+runs/
+tensorboard/
+*.pt
+*.pth
+*.zip
+
+# Local state / generated files
+stage_stats_curriculum_masked_ppo_v3.json
+*.tmp
+*.bak
+
+# Large analysis exports
+*.mp4
+*.avi
+*.mov
+
+# Optional: local datasets
+data/
