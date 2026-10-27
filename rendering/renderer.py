@@ -76,11 +76,61 @@ class Renderer:
         self.show_raycast_debug = show_raycast_debug
         self.show_navigation_debug = show_navigation_debug
 
+        # Follow camera is used only for human vs Stage 8D testing.
+        # It crops a fixed world-space square around the human player and scales
+        # it to the visible square viewport. It is deliberately separate from
+        # the normal renderer so other play/train/test modes are unchanged.
+        self.follow_camera_enabled = False
+        self.camera_target_agent_id: str | None = None
+        self.camera_world_span = 380.0
+        self.camera_square_view = True
+        self.camera_crop_x = 0.0
+        self.camera_crop_y = 0.0
+        self.camera_view_rect = pygame.Rect(0, 0, width, height)
+
     def reset_runtime_flags(self) -> None:
         self.quit_requested = False
         self.back_requested = False
         self.paused = False
         self.save_requested = False
+
+    def enable_follow_camera(
+        self,
+        target_agent_id: str,
+        world_span: float = 380.0,
+        square_view: bool = True,
+    ) -> None:
+        self.follow_camera_enabled = True
+        self.camera_target_agent_id = target_agent_id
+        self.camera_world_span = max(64.0, float(world_span))
+        self.camera_square_view = bool(square_view)
+
+    def disable_follow_camera(self) -> None:
+        self.follow_camera_enabled = False
+        self.camera_target_agent_id = None
+        self.camera_world_span = 380.0
+        self.camera_square_view = True
+        self.camera_crop_x = 0.0
+        self.camera_crop_y = 0.0
+        self.camera_view_rect = pygame.Rect(0, 0, self.screen.get_width(), self.screen.get_height())
+
+    def screen_to_world(self, x: float, y: float) -> tuple[float, float]:
+        if not self.follow_camera_enabled:
+            return float(x), float(y)
+
+        scale = self.camera_view_rect.width / max(1.0, self.camera_world_span)
+        if scale <= 1e-6:
+            return float(x), float(y)
+
+        world_x = (x - self.camera_view_rect.x) / scale + self.camera_crop_x
+        world_y = (y - self.camera_view_rect.y) / scale + self.camera_crop_y
+        return world_x, world_y
+
+    def world_to_screen(self, x: float, y: float) -> tuple[int, int]:
+        # Normal renderer path: world coordinates are screen coordinates.
+        # Follow-camera mode renders to a temporary world-sized surface first,
+        # so this identity transform is still correct there.
+        return int(x), int(y)
 
     def process_runtime_events(self) -> None:
         for event in pygame.event.get():
@@ -103,12 +153,29 @@ class Renderer:
         while self.paused and not self.quit_requested and not self.back_requested:
             self.process_runtime_events()
             draw_callback()
-            self.draw_pause_overlay(["PAUSED", "Press P to resume", "F3 toggles ray debug", "F4 toggles A* path debug", "F5 saves checkpoint", "Press ESC to go back"])
+            self.draw_pause_overlay([
+                "PAUSED",
+                "Press P to resume",
+                "F3 toggles ray debug",
+                "F4 toggles A* path debug",
+                "F5 saves checkpoint",
+                "Press ESC to go back",
+            ])
             pygame.display.flip()
             self.clock.tick(30)
         return not (self.quit_requested or self.back_requested)
 
     def draw_world(self, world: World, hud_lines: list[str] | None = None, title: str | None = None) -> None:
+        if self.follow_camera_enabled:
+            self._draw_world_follow_camera(world, hud_lines or [], title or "")
+            return
+
+        self._draw_world_content(world)
+        self._draw_hud(hud_lines or [], title or "")
+        pygame.display.flip()
+        self.clock.tick(self.target_fps)
+
+    def _draw_world_content(self, world: World) -> None:
         self.screen.fill(COLORS["bg"])
         self._draw_arena_boundary(world)
         self._draw_obstacles(world.obstacles)
@@ -120,7 +187,67 @@ class Renderer:
         self._draw_debug_points(world)
         self._draw_projectiles(world.projectiles)
         self._draw_agents(world)
-        self._draw_hud(hud_lines or [], title or "")
+
+    def _current_camera_view_rect(self) -> pygame.Rect:
+        screen_width = self.screen.get_width()
+        screen_height = self.screen.get_height()
+        if self.camera_square_view:
+            view_size = min(screen_width, screen_height)
+            view_x = (screen_width - view_size) // 2
+            view_y = (screen_height - view_size) // 2
+            return pygame.Rect(view_x, view_y, view_size, view_size)
+        return pygame.Rect(0, 0, screen_width, screen_height)
+
+    def _draw_world_follow_camera(self, world: World, hud_lines: list[str], title: str) -> None:
+        display_surface = self.screen
+
+        world_width = max(1, int(math.ceil(world.width)))
+        world_height = max(1, int(math.ceil(world.height)))
+        world_surface = pygame.Surface((world_width, world_height)).convert()
+
+        self.screen = world_surface
+        try:
+            self._draw_world_content(world)
+        finally:
+            self.screen = display_surface
+
+        view_rect = self._current_camera_view_rect()
+        self.camera_view_rect = view_rect
+
+        target = None
+        if self.camera_target_agent_id is not None:
+            target = world.agents.get(self.camera_target_agent_id)
+
+        if target is not None:
+            center_x = target.position.x
+            center_y = target.position.y
+        else:
+            center_x = world.width / 2.0
+            center_y = world.height / 2.0
+
+        span = int(round(self.camera_world_span))
+
+        # No clamping. The human player remains exactly in the center of the
+        # viewport even near arena borders. Outside-map area is drawn as bg.
+        self.camera_crop_x = center_x - span / 2.0
+        self.camera_crop_y = center_y - span / 2.0
+
+        camera_surface = pygame.Surface((span, span)).convert()
+        camera_surface.fill(COLORS["bg"])
+        camera_surface.blit(
+            world_surface,
+            (-int(round(self.camera_crop_x)), -int(round(self.camera_crop_y))),
+        )
+
+        # Use scale rather than smoothscale to keep the enlarged CS2D-like view
+        # crisp and avoid extra blur in the human evaluation mode.
+        scaled_camera = pygame.transform.scale(camera_surface, (view_rect.width, view_rect.height))
+
+        display_surface.fill(COLORS["bg"])
+        display_surface.blit(scaled_camera, view_rect.topleft)
+        pygame.draw.rect(display_surface, COLORS["arena_boundary"], view_rect, 2)
+
+        self._draw_hud(hud_lines, title)
         pygame.display.flip()
         self.clock.tick(self.target_fps)
 
@@ -147,20 +274,13 @@ class Renderer:
             if not pickup.active:
                 continue
             color_key = "pickup_health" if pickup.kind == "health" else "pickup_ammo"
-            pygame.draw.circle(
-                self.screen,
-                COLORS[color_key],
-                (int(pickup.position.x), int(pickup.position.y)),
-                int(pickup.radius),
-            )
+            center = self.world_to_screen(pickup.position.x, pickup.position.y)
+            pygame.draw.circle(self.screen, COLORS[color_key], center, int(pickup.radius))
             label = "H" if pickup.kind == "health" else "A"
             surface = self.small_font.render(label, True, (20, 20, 20))
             self.screen.blit(
                 surface,
-                (
-                    int(pickup.position.x - surface.get_width() / 2),
-                    int(pickup.position.y - surface.get_height() / 2),
-                ),
+                (center[0] - surface.get_width() // 2, center[1] - surface.get_height() // 2),
             )
 
     def _draw_rays(self, world: World) -> None:
@@ -172,8 +292,6 @@ class Renderer:
             4: COLORS["ray_projectile"],
         }
         for ray in world.debug_rays:
-            # New detection debug objects expose start/end/hit_point. The old
-            # tuple form is still accepted for compatibility with older demos.
             if hasattr(ray, "start"):
                 start, end, hit_type = ray.start, ray.end, ray.hit_type
                 hit_point = ray.hit_point
@@ -181,13 +299,19 @@ class Renderer:
                 start, end, hit_type = ray
                 hit_point = end if hit_type else None
             color = color_map.get(hit_type, COLORS["ray_none"])
-            pygame.draw.line(self.screen, color, (int(start[0]), int(start[1])), (int(end[0]), int(end[1])), 1)
+            pygame.draw.line(
+                self.screen,
+                color,
+                self.world_to_screen(start[0], start[1]),
+                self.world_to_screen(end[0], end[1]),
+                1,
+            )
             if hit_point is not None:
-                pygame.draw.circle(self.screen, color, (int(hit_point[0]), int(hit_point[1])), 3)
+                pygame.draw.circle(self.screen, color, self.world_to_screen(hit_point[0], hit_point[1]), 3)
 
     def _draw_navigation_debug(self, world: World) -> None:
         for polyline in getattr(world, "debug_polylines", []):
-            points = [(int(x), int(y)) for x, y in polyline.points]
+            points = [self.world_to_screen(x, y) for x, y in polyline.points]
             if len(points) >= 2:
                 pygame.draw.lines(self.screen, COLORS["nav_path"], False, points, max(1, int(polyline.width)))
                 for point in points:
@@ -199,13 +323,14 @@ class Renderer:
             "navigation_waypoint": COLORS["navigation_waypoint"],
         }
         for x, y, kind in getattr(world, "debug_points", []):
+            point = self.world_to_screen(x, y)
             if kind in color_map:
                 color = color_map[kind]
                 radius = 6 if kind == "navigation_waypoint" else 5
-                pygame.draw.circle(self.screen, color, (int(x), int(y)), radius, 2)
+                pygame.draw.circle(self.screen, color, point, radius, 2)
                 continue
             color = COLORS["ray_wall"] if "block" in kind else COLORS["projectile"]
-            pygame.draw.circle(self.screen, color, (int(x), int(y)), 4, 1)
+            pygame.draw.circle(self.screen, color, point, 4, 1)
 
     def consume_save_request(self) -> bool:
         requested = self.save_requested
@@ -214,28 +339,28 @@ class Renderer:
 
     def _draw_projectiles(self, projectiles: list[Projectile]) -> None:
         for projectile in projectiles:
+            center = self.world_to_screen(projectile.position.x, projectile.position.y)
             pygame.draw.circle(
                 self.screen,
                 COLORS["projectile"],
-                (int(projectile.position.x), int(projectile.position.y)),
+                center,
                 int(projectile.radius + 1),
             )
-            # Draw a short velocity marker so incoming projectile direction is
-            # visually readable in dodging stages.
-            speed = math.hypot(projectile.velocity.x, projectile.velocity.y)
 
+            speed = math.hypot(projectile.velocity.x, projectile.velocity.y)
+            direction_x = 0.0
+            direction_y = 0.0
             if speed > 1e-9:
                 direction_x = projectile.velocity.x / speed
                 direction_y = projectile.velocity.y / speed
 
             end_x = projectile.position.x + direction_x * 13
             end_y = projectile.position.y + direction_y * 13
-
             pygame.draw.line(
                 self.screen,
                 COLORS["projectile"],
-                (int(projectile.position.x), int(projectile.position.y)),
-                (int(end_x), int(end_y)),
+                center,
+                self.world_to_screen(end_x, end_y),
                 2,
             )
 
@@ -245,20 +370,14 @@ class Renderer:
                 continue
             color = COLORS["learner"] if agent_id == "learner" else COLORS["enemy"]
             aim_color = COLORS["aim_learner"] if agent_id == "learner" else COLORS["aim_enemy"]
-            center = (int(agent.position.x), int(agent.position.y))
+            center = self.world_to_screen(agent.position.x, agent.position.y)
             pygame.draw.circle(self.screen, color, center, int(agent.radius))
             pygame.draw.circle(self.screen, (255, 255, 255), center, int(agent.radius), 2)
 
-            # A long heading line is deliberately drawn for the RL-controlled
-            # bot. Stage 1 depends almost entirely on aim direction, so the line
-            # makes debugging tracking behavior much clearer than a small nose.
             aim_length = 70 if agent_id == "learner" else 50
-            end_x = center[0] + math.cos(agent.heading) * aim_length
-            end_y = center[1] + math.sin(agent.heading) * aim_length
-            pygame.draw.line(self.screen, aim_color, center, (int(end_x), int(end_y)), 3)
-            #nose_x = center[0] + math.cos(agent.heading) * agent.radius * 1.6
-            #nose_y = center[1] + math.sin(agent.heading) * agent.radius * 1.6
-            #pygame.draw.circle(self.screen, aim_color, (int(nose_x), int(nose_y)), 4)
+            end_x = agent.position.x + math.cos(agent.heading) * aim_length
+            end_y = agent.position.y + math.sin(agent.heading) * aim_length
+            pygame.draw.line(self.screen, aim_color, center, self.world_to_screen(end_x, end_y), 3)
 
             self._draw_health_bar(center[0], center[1] - 28, agent.health_ratio)
             ammo_text = self.small_font.render(f"{agent.ammo}", True, COLORS["text"])
@@ -272,7 +391,7 @@ class Renderer:
         pygame.draw.rect(self.screen, COLORS["health_fg"], (x, y, int(width * ratio), height), border_radius=2)
 
     def _draw_hud(self, hud_lines: list[str], title: str) -> None:
-        panel = pygame.Rect(10, 10, 420, max(86, 26 + 20 * len(hud_lines)))
+        panel = pygame.Rect(10, 10, 520, max(86, 26 + 20 * len(hud_lines)))
         pygame.draw.rect(self.screen, COLORS["panel"], panel, border_radius=8)
         pygame.draw.rect(self.screen, COLORS["panel_border"], panel, 2, border_radius=8)
         if title:
@@ -283,8 +402,6 @@ class Renderer:
             self.screen.blit(surface, (24, 44 + index * 18))
 
     def _draw_arena_boundary(self, world: World) -> None:
-        # Stage 3 "wall avoidance" means avoiding the arena boundaries when no
-        # obstacle walls are enabled, so draw the boundary explicitly.
         rect = pygame.Rect(0, 0, int(world.width) - 1, int(world.height) - 1)
         pygame.draw.rect(self.screen, COLORS["arena_boundary"], rect, 5, border_radius=2)
 

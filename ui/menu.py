@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import pygame
 
@@ -145,6 +146,7 @@ def show_main_menu() -> str:
         MenuButton("Play human vs stock bot", "play_stock", ["Human-controlled player against the improved scripted stock bot."]),
         MenuButton("Train MaskablePPO bot", "train", ["Choose a curriculum stage. Headless training is the default; visual training is optional."]),
         MenuButton("Watch / test trained RL bot", "test", ["Choose a saved validated MaskablePPO/PPO bot and play against it."]),
+        MenuButton("Test final 8D RL bot", "test_bots", ["Choose an evaluation opponent and run visually or headless."]),
         MenuButton("Run Stage 0 sanity check", "sanity", ["Scripted validation of movement, shooting, collisions, pickups, rewards, observations, and reset logic."]),
         MenuButton("Quit", "quit", ["Close the game."]),
     ]
@@ -260,6 +262,20 @@ def show_previous_stage_source_menu(
 def show_test_menu(model_rows: list[dict]) -> str | None:
     menu = MenuScreen(caption="RL Shooter - Test")
 
+    stage8_8d_model = Path("checkpoints/curriculum_masked_ppo_v3/stage8/best_stage8_8d_level_04.zip")
+
+    if stage8_8d_model.exists() and not any(row.get("stage_id") == "stage8" for row in model_rows):
+        model_rows = list(model_rows)
+        model_rows.append(
+            {
+                "label": "best_stage8_8d_level_04.zip",
+                "stage_id": "stage8",
+                "description": "Stage 8D - temporary test model",
+                "official": False,
+                "passed_validation": False,
+            }
+        )
+
     if not model_rows:
         buttons = [MenuButton("No trained bots found", "none", ["Train and validate a stage first."], enabled=False)]
     else:
@@ -281,5 +297,92 @@ def show_test_menu(model_rows: list[dict]) -> str | None:
         subtitle="Choose which saved RL bot to fight",
         buttons=buttons,
         footer_lines=["ESC: back to main menu"],
+        allow_escape_back=True,
+    )
+
+
+def show_bot_vs_bot_model_menu(side_label: str) -> str | None:
+    menu = MenuScreen(caption=f"RL Shooter - Select {side_label}")
+
+    stage8_8d_model = Path("checkpoints/curriculum_masked_ppo_v3/stage8/best_stage8_8d_level_04.zip")
+
+    rows: list[dict] = []
+
+    if side_label == "Bot A":
+        if stage8_8d_model.exists():
+            rows.append(
+                {
+                    "label": "Blue: Stage 8D RL bot",
+                    "tag": "stage8_8d",
+                    "description": "Final trained 8D RL bot using best_stage8_8d_level_04.zip.",
+                }
+            )
+    else:
+        rows.extend(
+            [
+                {
+                    "label": "Red: FSM evaluation bot",
+                    "tag": "fsm",
+                    "description": "Finite-state-machine bot with seek LOS, attack, strafe, reload, and retreat states.",
+                },
+                {
+                    "label": "Red: Behavior Tree evaluation bot",
+                    "tag": "behavior_tree",
+                    "description": "Behavior-tree bot with ordered decisions for reload, retreat, LOS recovery, and attack.",
+                },
+                {
+                    "label": "Red: CS2D-style approximation bot",
+                    "tag": "cs2d_style",
+                    "description": "Game-like bot with reaction delay, aim smoothing, aim noise, burst shooting, strafing, and LOS recovery.",
+                },
+                {
+                    "label": "Human player",
+                    "tag": "human",
+                    "description": "Human-controlled player against the final trained 8D RL bot.",
+                },
+            ]
+        )
+
+    if not rows:
+        buttons = [
+            MenuButton(
+                "No bot models found",
+                "none",
+                ["Expected: checkpoints/curriculum_masked_ppo_v3/stage8/best_stage8_8d_level_04.zip"],
+                enabled=False,
+            )
+        ]
+    else:
+        buttons = [
+            MenuButton(
+                label=row["label"],
+                tag=row["tag"],
+                description_lines=[row["description"]],
+                enabled=True,
+            )
+            for row in rows
+        ]
+
+    return menu.run(
+        title=f"Select {side_label}",
+        subtitle="Choose the bot for the final 8D evaluation test",
+        buttons=buttons,
+        footer_lines=["ESC: back"],
+        allow_escape_back=True,
+    )
+
+
+def show_evaluation_run_mode_menu() -> str | None:
+    menu = MenuScreen(caption="RL Shooter - Evaluation Mode")
+    buttons = [
+        MenuButton("Run visually", "visual", ["Show the match in the Pygame window. Useful for behavior inspection."]),
+        MenuButton("Run headless", "headless", ["Run without rendering and print the final Red/Blue score in the terminal."]),
+    ]
+
+    return menu.run(
+        title="Evaluation Run Mode",
+        subtitle="Choose visual or headless test execution",
+        buttons=buttons,
+        footer_lines=["ESC: back"],
         allow_escape_back=True,
     )

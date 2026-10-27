@@ -447,10 +447,10 @@ class StockBot:
             target_ammo = max(1, int(round(float(self.agent.max_ammo) / 3.0)))
             if self.agent.ammo == 0:
                 return True
-            # Do not reload at the 4/9 spawn state. The enemy must also spend
-            # ammo first, then reload around 3/9 so the visual behavior matches
-            # the learner's Stage 8 objective.
-            if self.agent.ammo == target_ammo and not line_of_sight:
+            # Stage 8 keeps the normal Glock magazine. The scripted enemy uses
+            # the same simple tactical rule as before: reload around one-third
+            # magazine, preferably when line of sight is broken.
+            if self.agent.ammo <= target_ammo and not line_of_sight:
                 return True
             if self.agent.ammo < target_ammo:
                 return True
@@ -516,7 +516,7 @@ class ModelBot:
         self.obs_builder = ObsBuilder()
         self.skill_table = build_skill_table(self.stage_id, evaluation_mode=True)
         self._frames: deque[np.ndarray] = deque(maxlen=self.stage.frame_stack)
-        self._stage8_starting_ammo = 4
+        self._stage8_starting_ammo = self.agent.max_ammo
         self._stage8_shots_fired = 0
         self._last_ammo: int | None = None
 

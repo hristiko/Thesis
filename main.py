@@ -3,7 +3,7 @@ from __future__ import annotations
 import pygame
 
 from config.stages import get_stage
-from game.session import run_human_vs_model_bot, run_human_vs_stock_bot
+from game.session import run_human_vs_model_bot, run_human_vs_stock_bot, run_model_vs_model_bot
 from tools.sanity_check import run_stage0_sanity_check
 from training.stage_manager import (
     ensure_stage_stats_file,
@@ -15,6 +15,8 @@ from training.stage_manager import (
 )
 from training.train import run_training_for_stage
 from ui.menu import (
+    show_bot_vs_bot_model_menu,
+    show_evaluation_run_mode_menu,
     show_main_menu,
     show_previous_stage_source_menu,
     show_test_menu,
@@ -111,6 +113,29 @@ def main() -> None:
                 running = False
             elif stage_choice and stage_choice != "none":
                 run_human_vs_model_bot(stage_choice)
+
+        elif choice == "test_bots":
+            bot_a_choice = show_bot_vs_bot_model_menu("Bot A")
+            if bot_a_choice is None or bot_a_choice == "quit" or bot_a_choice == "none":
+                continue
+
+            bot_b_choice = show_bot_vs_bot_model_menu("Bot B")
+            if bot_b_choice is None or bot_b_choice == "quit" or bot_b_choice == "none":
+                continue
+
+            if bot_b_choice == "human":
+                run_human_vs_model_bot("stage8", use_follow_camera=True)
+                continue
+
+            mode_choice = show_evaluation_run_mode_menu()
+            if mode_choice is None or mode_choice == "quit":
+                continue
+
+            run_model_vs_model_bot(
+                bot_a_choice,
+                bot_b_choice,
+                visible=(mode_choice == "visual"),
+            )
 
         elif choice == "quit":
             running = False

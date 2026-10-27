@@ -42,7 +42,12 @@ def _set_global_seed(seed: int | None) -> None:
 
 def _ppo_hyperparameters(stage_id: str | None = None) -> dict[str, Any]:
     normalized_stage_id = normalize_stage_id(stage_id or "stage1")
-    if normalized_stage_id in {"stage5", "stage6", "stage7"}:
+
+    if normalized_stage_id == "stage8":
+        # Cooling phase: reduce exploration noise so the useful Stage 8 combat
+        # actions become deterministic rather than only stochastic samples.
+        ent_coef = 0.001
+    elif normalized_stage_id in {"stage5", "stage6", "stage7"}:
         ent_coef = 0.01
     elif normalized_stage_id in {"stage3", "stage4"}:
         ent_coef = 0.02
@@ -67,7 +72,7 @@ def _ppo_hyperparameters(stage_id: str | None = None) -> dict[str, Any]:
         "verbose": 1,
         "device": "cpu",
     }
-    if normalized_stage_id in {"stage4", "stage5", "stage6", "stage7"}:
+    if normalized_stage_id in {"stage4", "stage5", "stage6", "stage7", "stage8"}:
         params["target_kl"] = 0.02
     return params
 
@@ -75,6 +80,21 @@ def _ppo_hyperparameters(stage_id: str | None = None) -> dict[str, Any]:
 def _make_new_model(env: Any, stage_id: str | None = None) -> Any:
     params = _ppo_hyperparameters(stage_id)
     return make_model(env, params)
+
+def _apply_runtime_hyperparameters(model: Any, stage_id: str) -> Any:
+    """Apply checkpoint-compatible PPO hyperparameter changes.
+
+    This is needed when resuming a saved model, because the old PPO object may
+    still contain the previous ent_coef value from the checkpoint.
+    """
+    params = _ppo_hyperparameters(stage_id)
+
+    model.ent_coef = float(params["ent_coef"])
+
+    if "target_kl" in params:
+        model.target_kl = float(params["target_kl"])
+
+    return model
 
 
 def _choose_same_stage_resume_path(stage, resume_same_stage: bool) -> Path | None:
@@ -309,6 +329,11 @@ def run_training_for_stage(
             _transfer_compatible_policy_weights(model, model_path)
     else:
         model = _load_or_create_model(stage.stage_id, train_env, resume_same_stage, prev_source)
+
+    model = _apply_runtime_hyperparameters(model, stage.stage_id)
+
+    if stage.stage_id == "stage8":
+        print(f"[STAGE8 COOLING] ent_coef set to {model.ent_coef}")
 
     if stage.stage_id == "stage3" and eval_episodes_per_check < 25:
         eval_episodes_per_check = 25

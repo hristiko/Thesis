@@ -106,12 +106,18 @@ METRIC_FIELDS = [
     "stage8_curriculum_level",
     "stage8_curriculum_total_levels",
     "stage8_curriculum_phase_index",
+    "stage8_enemy_waves",
+    "stage8_current_wave",
+    "stage8_waves_cleared",
+    "stage8_wave_clear_ratio",
     "stage8_max_steps",
     "stage8_episodes_at_curriculum_level",
     "stage8_obstacle_count",
     "stage8_obstacle_variant_id",
     "stage8_spawn_index",
     "stage8_spawn_pair_id",
+    "stage8_last_enemy_respawn_index",
+    "stage8_controlled_respawn_used",
     "stage8_enemy_fire_rate_scale",
     "stage8_first_shot_delay_steps",
     "stage8_max_active_enemy_projectiles",
@@ -124,6 +130,8 @@ METRIC_FIELDS = [
     "stage8_curriculum_rolling_early_reloads",
     "stage8_curriculum_rolling_empty_ammo_steps",
     "stage8_reload_started",
+    "stage8_timely_reloads",
+    "stage8_late_rescue_reloads",
     "stage8_good_reloads",
     "stage8_acceptable_reloads",
     "stage8_early_reloads",
@@ -141,10 +149,26 @@ METRIC_FIELDS = [
     "stage8_low_ammo_steps",
     "stage8_critical_ammo_steps",
     "stage8_empty_ammo_steps",
+    "stage8_consecutive_empty_ammo_steps",
+    "stage8_empty_ammo_timeout",
+    "stage8_low_ammo_decision_steps",
+    "stage8_low_ammo_decision_active",
     "stage8_clean_aligned_shots",
     "stage8_shots_after_reload",
     "stage8_unaligned_shot_attempts",
     "stage8_no_los_shot_attempts",
+    "stage8_obstacle_no_los_shot_attempts",
+    "stage8_no_los_shot_rate",
+    "stage8_no_los_stationary_penalty_steps",
+    "stage8_blind_rotation_steps",
+    "stage8_blind_rotation_penalty_steps",
+    "stage8_blind_rotation_shots",
+    "stage8_consecutive_no_los_shots",
+    "stage8_repeated_no_los_shot_penalties",
+    "stage8_too_close_steps",
+    "stage8_danger_close_steps",
+    "stage8_close_withdraw_steps",
+    "stage8_closing_when_too_close_steps",
     "stage8_aim_hold_steps",
     "stage8_aim_improve_steps",
     "stage8_aim_worse_steps",
@@ -155,6 +179,14 @@ METRIC_FIELDS = [
     "stage8_movement_flip_count",
     "stage8_movement_flip_rate",
     "stage8_smooth_move_steps",
+    "stage8_passivity_penalty_steps",
+    "stage8_passivity_penalty_sum",
+    "stage8_steps_since_damage_dealt",
+    "stage8_wasted_reloads",
+    "stage8_magazine_shots_since_reload",
+    "stage8_magazine_hits_since_reload",
+    "stage8_magazine_damage_since_reload",
+    "stage8_magazine_no_los_shots_since_reload",
     "projectile_danger_steps",
     "projectile_dodges",
     "projectile_hits_taken",
@@ -644,102 +676,162 @@ STAGE7_CURRICULUM_PHASES = (
 
 STAGE8_CURRICULUM_WINDOW = 30
 
+# Intermediate Stage 8 phases are bridge phases, not final thesis validation.
+# They use lighter gate counts so the curriculum can move forward once the
+# behavior appears in deterministic evaluation. The final 8F phase keeps the
+# stricter three-check gate.
 STAGE8_CURRICULUM_PHASES = (
     {
         "phase": "8A",
         "phase_index": 1,
-        "max_steps": 900,
+        "max_steps": 1600,
         "obstacle_count": 0,
+        "enemy_waves": 5,
         "enemy_can_move": False,
         "enemy_can_shoot": False,
         "fire_rate_scale": 0.0,
         "first_shot_delay_steps": 9999,
         "max_active_projectiles": 0,
-        "required_success": 0.30,
+        "required_success": 0.25,
         "required_metric": 0.35,
-        "max_death_rate": 0.95,
-        "min_reload_quality": 0.60,
-        "max_avg_early_reloads": 0.35,
-        "max_avg_empty_ammo_steps": 60.0,
-        "min_episodes": 80,
-        "required_eval_checks": 3,
+        "max_death_rate": 0.35,
+        "min_reload_quality": 0.20,
+        "min_timely_reloads": 0.20,
+        "max_avg_early_reloads": 2.5,
+        "max_avg_empty_ammo_steps": 220.0,
+        "min_episodes": 100,
+        "required_eval_checks": 2,
     },
     {
         "phase": "8B",
         "phase_index": 2,
-        "max_steps": 1000,
+        "max_steps": 1800,
         "obstacle_count": 0,
+        "enemy_waves": 5,
         "enemy_can_move": False,
         "enemy_can_shoot": True,
-        "fire_rate_scale": 0.45,
-        "first_shot_delay_steps": 120,
+        "fire_rate_scale": 0.25,
+        "first_shot_delay_steps": 180,
         "max_active_projectiles": 1,
-        "required_success": 0.40,
-        "required_metric": 0.50,
+        "required_success": 0.22,
+        "required_metric": 0.34,
         "max_death_rate": 0.65,
-        "min_reload_quality": 0.45,
-        "max_avg_early_reloads": 0.90,
-        "max_avg_empty_ammo_steps": 140.0,
-        "min_episodes": 160,
-        "required_eval_checks": 3,
+        "min_reload_quality": 0.25,
+        "min_timely_reloads": 0.20,
+        "max_avg_early_reloads": 2.5,
+        "max_avg_empty_ammo_steps": 220.0,
+        "min_episodes": 140,
+        "required_eval_checks": 1,
     },
     {
         "phase": "8C",
         "phase_index": 3,
-        "max_steps": 1200,
+        "max_steps": 1700,
         "obstacle_count": 1,
+        "enemy_waves": 3,
         "enemy_can_move": False,
-        "enemy_can_shoot": True,
-        "fire_rate_scale": 0.60,
-        "first_shot_delay_steps": 80,
-        "max_active_projectiles": 1,
-        "required_success": 0.38,
-        "required_metric": 0.50,
-        "max_death_rate": 0.60,
-        "min_reload_quality": 0.48,
-        "max_avg_early_reloads": 0.70,
-        "max_avg_empty_ammo_steps": 100.0,
-        "min_episodes": 180,
-        "required_eval_checks": 3,
+        "enemy_can_shoot": False,
+        "fire_rate_scale": 0.0,
+        "first_shot_delay_steps": 999999,
+        "max_active_projectiles": 0,
+        "required_success": 0.30,
+        "required_metric": 0.38,
+        "max_death_rate": 0.75,
+        "min_reload_quality": 0.0,
+        "min_timely_reloads": 0.0,
+        "max_avg_early_reloads": 3.0,
+        "max_avg_empty_ammo_steps": 500.0,
+        "max_avg_no_los_shot_rate": 0.50,
+        "max_avg_no_los_shot_attempts": 9.0,
+        "max_avg_blind_rotation_steps": 60.0,
+        "max_avg_too_close_steps": 180.0,
+        "max_avg_danger_close_steps": 80.0,
+        "min_episodes": 120,
+        "required_eval_checks": 2,
     },
     {
         "phase": "8D",
         "phase_index": 4,
-        "max_steps": 1450,
-        "obstacle_count": 3,
-        "enemy_can_move": True,
-        "enemy_can_shoot": True,
-        "fire_rate_scale": 0.80,
-        "first_shot_delay_steps": 40,
-        "max_active_projectiles": 2,
-        "required_success": 0.30,
-        "required_metric": 0.46,
-        "max_death_rate": 0.58,
-        "min_reload_quality": 0.50,
-        "max_avg_early_reloads": 0.60,
-        "max_avg_empty_ammo_steps": 80.0,
-        "min_episodes": 220,
+        "max_steps": 2000,
+        "obstacle_count": 1,
+        "enemy_waves": 4,
+        "enemy_can_move": False,
+        "enemy_can_shoot": False,
+        "fire_rate_scale": 0.0,
+        "first_shot_delay_steps": 999999,
+        "max_active_projectiles": 0,
+        "required_success": 0.35,
+        "required_metric": 0.42,
+        "max_death_rate": 0.75,
+        "min_reload_quality": 0.0,
+        "min_timely_reloads": 0.0,
+        "max_avg_early_reloads": 3.0,
+        "max_avg_empty_ammo_steps": 450.0,
+        "max_avg_no_los_shot_rate": 0.40,
+        "max_avg_no_los_shot_attempts": 8.0,
+        "max_avg_blind_rotation_steps": 45.0,
+        "max_avg_too_close_steps": 150.0,
+        "max_avg_danger_close_steps": 60.0,
+        "min_episodes": 160,
         "required_eval_checks": 3,
     },
     {
         "phase": "8E",
         "phase_index": 5,
-        "max_steps": 1600,
-        "obstacle_count": 4,
-        "enemy_can_move": True,
+        "max_steps": 2400,
+        "obstacle_count": 0,
+        "enemy_waves": 5,
+        "enemy_can_move": False,
+        "enemy_can_shoot": False,
+        "fire_rate_scale": 0.0,
+        "first_shot_delay_steps": 999999,
+        "max_active_projectiles": 0,
+        "required_success": 0.25,
+        "required_metric": 0.34,
+        "max_death_rate": 0.80,
+        "min_reload_quality": 0.15,
+        "min_timely_reloads": 0.20,
+        "max_avg_early_reloads": 1.5,
+        "max_avg_empty_ammo_steps": 500.0,
+        "max_avg_no_los_shot_rate": 0.35,
+        "max_avg_no_los_shot_attempts": 8.0,
+        # 8E is reload endurance. Obstacle-control diagnostics are logged, but
+        # they should not be the main promotion blocker here. 8F is the harder
+        # integrated obstacle + enemy-fire validation.
+        "max_avg_blind_rotation_steps": 9999.0,
+        "max_avg_too_close_steps": 9999.0,
+        "max_avg_danger_close_steps": 9999.0,
+        "min_episodes": 160,
+        "required_eval_checks": 3,
+    },
+    {
+        "phase": "8F",
+        "phase_index": 6,
+        "max_steps": 2600,
+        "obstacle_count": 1,
+        "enemy_waves": 5,
+        "enemy_can_move": False,
         "enemy_can_shoot": True,
-        "fire_rate_scale": 1.00,
-        "first_shot_delay_steps": 0,
-        "max_active_projectiles": 99,
-        "required_success": 1.01,
-        "required_metric": 1.01,
-        "max_death_rate": 1.0,
-        "min_reload_quality": 0.0,
-        "max_avg_early_reloads": 999.0,
-        "max_avg_empty_ammo_steps": 9999.0,
-        "min_episodes": 0,
+        "fire_rate_scale": 0.25,
+        "first_shot_delay_steps": 150,
+        "max_active_projectiles": 1,
+        "required_success": 0.20,
+        "required_metric": 0.32,
+        "max_death_rate": 0.80,
+        "min_reload_quality": 0.15,
+        "min_timely_reloads": 0.20,
+        "max_avg_early_reloads": 3.5,
+        "max_avg_empty_ammo_steps": 420.0,
+        "max_avg_no_los_shot_rate": 0.28,
+        "max_avg_no_los_shot_attempts": 6.0,
+        "max_avg_blind_rotation_steps": 35.0,
+        "max_avg_too_close_steps": 120.0,
+        "max_avg_danger_close_steps": 45.0,
+        "min_episodes": 220,
+        "required_eval_checks": 3,
     },
 )
+
 
 
 
@@ -2009,6 +2101,7 @@ class StageTrainingCallback(BaseCallback):
             fire_rate_scale=float(phase.get("fire_rate_scale", 0.0)),
             first_shot_delay_steps=int(phase.get("first_shot_delay_steps", 9999)),
             max_active_enemy_projectiles=int(phase.get("max_active_projectiles", 0)),
+            enemy_waves=int(phase.get("enemy_waves", 5)),
         )
         if hasattr(self.training_env, "env_method"):
             self.training_env.env_method("set_stage8_curriculum_phase", **kwargs)
@@ -2150,6 +2243,9 @@ class StageTrainingCallback(BaseCallback):
             f"reloadQ {decision.details.get('reload_quality', 0.0):.3f}/{decision.details.get('min_reload_quality', 0.0):.3f} | "
             f"early {decision.details.get('avg_early_reloads', 0.0):.2f}/{decision.details.get('max_avg_early_reloads', 0.0):.2f} | "
             f"empty {decision.details.get('avg_empty_ammo_steps', 0.0):.1f}/{decision.details.get('max_avg_empty_ammo_steps', 0.0):.1f} | "
+            f"noLOS {decision.details.get('avg_no_los_shot_rate', 0.0):.2%}/{decision.details.get('max_avg_no_los_shot_rate', 1.0):.2%} | "
+            f"blind {decision.details.get('avg_blind_rotation_steps', 0.0):.1f}/{decision.details.get('max_avg_blind_rotation_steps', 9999.0):.1f} | "
+            f"close {decision.details.get('avg_too_close_steps', 0.0):.1f}/{decision.details.get('max_avg_too_close_steps', 9999.0):.1f} | "
             f"death {decision.details.get('death_rate', 0.0):.2%}/{decision.details.get('max_death_rate', 0.0):.2%} | "
             f"reasons: {reasons}"
         )
@@ -2571,7 +2667,8 @@ class StageTrainingCallback(BaseCallback):
                 f"[EVAL START stage8] Check {self.eval_check_counter} | "
                 f"phase {phase.get('phase', '8A')} | "
                 f"episodes {self.eval_episodes_per_check} | "
-                f"max_steps {int(phase.get('max_steps', 900))}"
+                f"max_steps {int(phase.get('max_steps', 900))} | "
+                f"waves {int(phase.get('enemy_waves', 5))}"
             )
 
         for episode_index in range(self.eval_episodes_per_check):
@@ -2594,6 +2691,7 @@ class StageTrainingCallback(BaseCallback):
                 print(
                     f"[EVAL EP stage8] {episode_index + 1}/{self.eval_episodes_per_check} | "
                     f"seed {eval_seed} | success {1 if info.get('success', False) else 0} | "
+                    f"waves {float(info.get('stage8_waves_cleared', 0.0) or 0.0):.0f}/{float(info.get('stage8_enemy_waves', 0.0) or 0.0):.0f} | "
                     f"reloads {float(info.get('stage8_reload_started', 0.0) or 0.0):.0f} | "
                     f"good {float(info.get('stage8_good_reloads', 0.0) or 0.0):.0f} | "
                     f"early {float(info.get('stage8_early_reloads', 0.0) or 0.0):.0f} | "
@@ -2747,7 +2845,9 @@ class StageTrainingCallback(BaseCallback):
                 row["stage8_eval_reason"] = gate.get("eval_reason", NA)
                 row["stage8_last_promotion_event"] = self.stage8_last_promotion_event or row.get("stage8_last_promotion_event", NA)
                 row["stage_promotion_reason"] = gate.get("summary_text", row.get("stage_promotion_reason", NA))
-                if gate.get("phase_name", "8E") != "8E":
+                gate_phase_index = int(gate.get("phase_index", 0) or 0)
+                is_stage8_intermediate_phase = 0 < gate_phase_index < len(STAGE8_CURRICULUM_PHASES)
+                if is_stage8_intermediate_phase and gate_phase_index < len(STAGE8_CURRICULUM_PHASES):
                     row["good_checks_count"] = self.stage8_eval_gate_good_checks
                     row["required_good_checks"] = int(gate.get("required_checks", self.required_consecutive_checks))
                 else:
@@ -2842,6 +2942,7 @@ class StageTrainingCallback(BaseCallback):
             print(
                 f"           Phase {self._stage8_current_phase().get('phase', '8E')} | "
                 f"Obstacles {int(self._stage8_current_phase().get('obstacle_count', 4)):1d} | "
+                f"Waves {float(mean_metrics.get('stage8_waves_cleared', 0.0)):4.1f}/{float(mean_metrics.get('stage8_enemy_waves', 0.0)):4.1f} | "
                 f"Kills {float(mean_metrics.get('kills', 0.0)):4.1f} | "
                 f"Deaths {float(mean_metrics.get('deaths', 0.0)):4.1f} | "
                 f"DamageDealt {float(mean_metrics.get('damage_dealt', 0.0)):5.1f} | "

@@ -208,22 +208,61 @@ class RewardManager:
     # Stage 8: final tactical reload management with retained movement/aiming.
     # Tactical mistakes are not action-masked in the final setup; they are
     # learned through reward penalties and validation metrics.
-    STAGE8_TARGET_RELOAD_RATIO = 1.0 / 3.0
-    STAGE8_GOOD_RELOAD_BAND = 0.001  # Stage 8 now uses integer ammo checks; kept for compatibility.
-    STAGE8_ACCEPTABLE_RELOAD_BAND = 0.112  # 2/9 is acceptable-late; 4/9 is early.
-    STAGE8_GOOD_RELOAD_REWARD = 2.000
-    STAGE8_ACCEPTABLE_RELOAD_REWARD = 0.120
-    STAGE8_EARLY_RELOAD_PENALTY = -1.600
-    STAGE8_LATE_RELOAD_PENALTY = -0.900
-    STAGE8_EMPTY_RELOAD_PENALTY = -1.150
-    STAGE8_EMPTY_TRIGGER_EXTRA_PENALTY = -0.550
+    STAGE8_TARGET_RELOAD_RATIO = 0.60
+    # Stage 8 is now an endurance stage.  Good reloads are useful reloads in
+    # longer combat, not exact one-third-magazine reloads.
+    STAGE8_GOOD_RELOAD_BAND = 0.60
+    STAGE8_ACCEPTABLE_RELOAD_BAND = 0.75
+    STAGE8_GOOD_RELOAD_REWARD = 3.200
+    STAGE8_ACCEPTABLE_RELOAD_REWARD = 1.700
+    STAGE8_BETWEEN_WAVE_RELOAD_REWARD = 1.000
+    STAGE8_EARLY_RELOAD_PENALTY = -0.650
+    # In final 8E/8F, early reloads waste scarce reload charges and later cause
+    # empty-ammo collapse.  Keep reload physically available, but make high-ammo
+    # reloads clearly worse than spending useful bullets first.
+    STAGE8_FINAL_EARLY_RELOAD_MULTIPLIER = 3.00
+    STAGE8_FINAL_WASTED_RELOAD_CHARGE_PENALTY = -0.900
+    STAGE8_FINAL_MIN_USEFUL_AMMO_SPENT = 8
+    STAGE8_LATE_RELOAD_PENALTY = -0.700
+    STAGE8_EMPTY_RELOAD_PENALTY = -0.950
+    STAGE8_EMPTY_TRIGGER_EXTRA_PENALTY = -0.900
     STAGE8_RELOAD_FAILURE_EXTRA_PENALTY = -0.350
-    STAGE8_RELOAD_WHILE_KILLABLE_PENALTY = -0.650
-    STAGE8_LOW_AMMO_NO_RELOAD_PENALTY = -0.045
-    STAGE8_CRITICAL_AMMO_NO_RELOAD_PENALTY = -0.110
-    STAGE8_CLEAN_ALIGNED_SHOT_REWARD = 0.145
+    STAGE8_RELOAD_WHILE_KILLABLE_PENALTY = -0.450
+    STAGE8_LOW_AMMO_NO_RELOAD_PENALTY = -0.140
+    STAGE8_CRITICAL_AMMO_NO_RELOAD_PENALTY = -0.350
+    STAGE8_EMPTY_STATE_PENALTY = -0.300
+    STAGE8_LATE_RESCUE_RELOAD_REWARD = 0.700
+    STAGE8_LOW_AMMO_SHOT_PENALTY = -0.320
+    STAGE8_PASSIVITY_THRESHOLD_STEPS = 75
+    STAGE8_PASSIVITY_BASE_PENALTY = -0.006
+    STAGE8_PASSIVITY_MAX_PENALTY = -0.180
+    STAGE8_CLEAN_ALIGNED_SHOT_REWARD = 0.280
     STAGE8_UNALIGNED_SHOT_ATTEMPT_PENALTY = -0.520
-    STAGE8_NO_LOS_SHOT_ATTEMPT_PENALTY = -0.650
+    STAGE8_NO_LOS_SHOT_ATTEMPT_PENALTY = -0.300
+    # Stage 8 obstacle phases must not learn to solve waves by firing through cover.
+    # This remains reward shaping only; shooting without LOS is still selectable.
+    STAGE8_OBSTACLE_NO_LOS_SHOT_EXTRA_PENALTY = -0.120
+    STAGE8_NO_LOS_STATIONARY_GRACE_STEPS = 20
+    STAGE8_NO_LOS_STATIONARY_PENALTY = -0.075
+    # Stage 8 obstacle discipline: discourage blind in-place rotation and repeated
+    # wall shooting without using masks.  LOS loss itself remains allowed.
+    STAGE8_BLIND_ROTATION_SPEED_THRESHOLD = 10.0
+    STAGE8_BLIND_ROTATION_HEADING_DELTA = 0.050
+    STAGE8_BLIND_ROTATION_GRACE_STEPS = 12
+    STAGE8_BLIND_ROTATION_PENALTY = -0.085
+    STAGE8_BLIND_ROTATION_SHOT_EXTRA_PENALTY = -0.160
+    STAGE8_REPEATED_NO_LOS_SHOT_PENALTY = -0.095
+    STAGE8_OBSTACLE_RECOVERY_MOVE_REWARD = 0.035
+    STAGE8_OBSTACLE_RECOVERY_NAV_REWARD = 0.060
+    STAGE8_OBSTACLE_RECOVERY_NAV_REGRESS_PENALTY = -0.045
+    # Stage 8 range discipline: do not force an exact distance, but prevent the
+    # learner from rushing directly into the stock bot.
+    STAGE8_MIN_COMBAT_DISTANCE = 155.0
+    STAGE8_DANGER_CLOSE_DISTANCE = 105.0
+    STAGE8_TOO_CLOSE_PENALTY = -0.085
+    STAGE8_DANGER_CLOSE_PENALTY = -0.180
+    STAGE8_WITHDRAW_FROM_CLOSE_REWARD = 0.065
+    STAGE8_CLOSING_WHEN_TOO_CLOSE_PENALTY = -0.085
     STAGE8_AIM_IMPROVE_REWARD = 0.070
     STAGE8_AIM_WORSE_PENALTY = -0.070
     STAGE8_AIM_HOLD_REWARD = 0.055
@@ -236,16 +275,14 @@ class RewardManager:
     STAGE8_BLOCKED_MOVE_EXTRA_PENALTY = -0.190
     STAGE8_REPEATED_BLOCK_EXTRA_PENALTY = -0.120
     STAGE8_BLOCKED_TURN_FLIP_EXTRA_PENALTY = -0.050
-    STAGE8_CLEAR_SHOT_GAIN_BONUS = 0.420
-    STAGE8_CLEAR_ALIGNED_NO_SHOT_PENALTY = -0.075
-    STAGE8_SHOT_AFTER_RELOAD_REWARD = 0.240
+    STAGE8_CLEAR_SHOT_GAIN_BONUS = 0.500
+    STAGE8_CLEAR_ALIGNED_NO_SHOT_PENALTY = -0.400
+    STAGE8_SHOT_AFTER_RELOAD_REWARD = 0.360
     STAGE8_NO_POST_RELOAD_COMBAT_PENALTY = -0.018
     STAGE8_MIN_SHOTS_BEFORE_RELOAD = 1
-    STAGE8_PREMATURE_RELOAD_PENALTY = -1.500
-    # Stage 8A unmasked reload-timing tutor. These terms are deliberately
-    # phase-limited so later combat phases are not hard-scripted. The policy
-    # may still choose early/late reloads, but 8A makes the desired sequence
-    # much clearer: spawn at 4/9 -> shoot once -> reach 3/9 -> reload -> shoot.
+    STAGE8_PREMATURE_RELOAD_PENALTY = -1.100
+    # Deprecated 8A reload-tutor constants kept for backward-compatible logs.
+    # The current Stage 8 design uses sequential enemy waves instead.
     STAGE8_8A_REACH_TARGET_AMMO_REWARD = 0.850
     STAGE8_8A_TARGET_AMMO_HOLD_REWARD = 0.018
     STAGE8_8A_TARGET_NO_RELOAD_PENALTY = -0.160
@@ -333,6 +370,8 @@ class RewardManager:
         self.useless_pickups = 0
         self.pickups_collected = 0
         self.stage8_reload_started = 0
+        self.stage8_timely_reloads = 0
+        self.stage8_late_rescue_reloads = 0
         self.stage8_good_reloads = 0
         self.stage8_acceptable_reloads = 0
         self.stage8_early_reloads = 0
@@ -346,6 +385,17 @@ class RewardManager:
         self.stage8_shots_after_reload = 0
         self.stage8_unaligned_shot_attempts = 0
         self.stage8_no_los_shot_attempts = 0
+        self.stage8_obstacle_no_los_shot_attempts = 0
+        self.stage8_no_los_stationary_penalty_steps = 0
+        self.stage8_blind_rotation_steps = 0
+        self.stage8_blind_rotation_penalty_steps = 0
+        self.stage8_blind_rotation_shots = 0
+        self.stage8_consecutive_no_los_shots = 0
+        self.stage8_repeated_no_los_shot_penalties = 0
+        self.stage8_too_close_steps = 0
+        self.stage8_danger_close_steps = 0
+        self.stage8_close_withdraw_steps = 0
+        self.stage8_closing_when_too_close_steps = 0
         self.stage8_aim_hold_steps = 0
         self.stage8_aim_improve_steps = 0
         self.stage8_aim_worse_steps = 0
@@ -361,6 +411,14 @@ class RewardManager:
         self.stage8_first_shot_rewarded = False
         self.stage8_no_first_shot_pressure_steps = 0
         self.stage8_target_no_reload_timeout_steps = 0
+        self.stage8_steps_since_damage_dealt = 0
+        self.stage8_passivity_penalty_steps = 0
+        self.stage8_passivity_penalty_sum = 0.0
+        self.stage8_wasted_reloads = 0
+        self.stage8_magazine_shots_since_reload = 0
+        self.stage8_magazine_hits_since_reload = 0
+        self.stage8_magazine_damage_since_reload = 0.0
+        self.stage8_magazine_no_los_shots_since_reload = 0
         self.damage_dealt = 0.0
         self.damage_taken = 0.0
         self.hits_taken = 0
@@ -1439,43 +1497,61 @@ class RewardManager:
         projectile_danger: bool,
         nav_reference: NavigationReference | None = None,
     ) -> float:
-        """Stage 8 shaping: tactical reload plus stricter retained aim/movement.
+        """Stage 8 shaping: reload endurance plus retained combat behavior.
 
-        Stage 8 no longer uses map pickups or health regain. The new skill is to
-        reload before the Glock reaches empty, preferably around one third of the
-        magazine, without abandoning clean combat behavior learned in Stage 7.
+        Stage 8 no longer changes magazine size or teaches an exact reload script.
+        The same combat/reload components remain active, while sequential enemy
+        waves create natural pressure to reload during longer fights.
         """
         reward = 0.0
         ammo_ratio = learner.ammo_ratio
         target = self.STAGE8_TARGET_RELOAD_RATIO
-        phase_index = max(1, min(5, int(getattr(self, "stage8_curriculum_phase_index", 5) or 5)))
-        is_phase_8a = phase_index <= 1
+        phase_index = max(1, min(6, int(getattr(self, "stage8_curriculum_phase_index", 6) or 6)))
+        is_phase_8a = False
         target_ammo_now = max(1, int(round(float(max(1, learner.max_ammo)) / 3.0)))
         shot_fired_this_step = any(event.agent_id == learner.agent_id and event.kind == "shot_fired" for event in events)
         hit_this_step = any(event.agent_id == learner.agent_id and event.kind == "shot_hit" for event in events)
         reload_started_this_step = any(event.agent_id == learner.agent_id and event.kind == "reload_started" for event in events)
         weapon_ready = bool(learner.is_alive and learner.ammo > 0 and learner.fire_ready >= 0.5 and not getattr(learner, "reloading", False))
         killable_now = bool(current_clear_shot and current_angle_error <= self.STAGE8_ALIGNMENT_THRESHOLD and enemy.health <= learner.projectile_damage + 1e-6)
+        current_distance = learner.position.distance_to(enemy.position)
+        current_speed = learner.velocity.length()
+        distance_delta = current_distance - self.prev_distance
+        abs_heading_delta = abs(heading_delta)
 
         if self.stage8_reload_started > 0 and self.stage8_shots_after_reload == 0 and not getattr(learner, "reloading", False):
             # Reloading is only useful if the bot returns to combat afterwards.
             reward += self.STAGE8_NO_POST_RELOAD_COMBAT_PENALTY
 
+        reload_charges = getattr(learner, "reload_charges", None)
+        has_reload_reserve = reload_charges is None or int(reload_charges) > 0
+        low_ammo_decision = (
+            phase_index >= 5
+            and 0 < int(getattr(learner, "ammo", 0)) <= 8
+            and has_reload_reserve
+            and not getattr(learner, "reloading", False)
+        )
+
         if ammo_ratio <= 0.0 and not getattr(learner, "reloading", False):
             self.stage8_empty_ammo_steps += 1
+            if has_reload_reserve:
+                # Being empty with reserve reloads is the bad state. The reload
+                # action itself is allowed to be a late rescue escape hatch.
+                reward += self.STAGE8_EMPTY_STATE_PENALTY * (1.0 if phase_index >= 5 else 0.75)
+                if self.kills >= 1 or self.damage_dealt > 0.0:
+                    reward += self.STAGE8_LOW_AMMO_NO_RELOAD_PENALTY * 0.25
         if 0.0 < ammo_ratio <= target:
             self.stage8_low_ammo_steps += 1
             if not reload_started_this_step and not projectile_danger and not killable_now:
-                reward += self.STAGE8_LOW_AMMO_NO_RELOAD_PENALTY
+                reward += self.STAGE8_LOW_AMMO_NO_RELOAD_PENALTY * (1.60 if low_ammo_decision else 1.0)
         if 0.0 < ammo_ratio <= 0.16:
             self.stage8_critical_ammo_steps += 1
             if not reload_started_this_step and not projectile_danger:
-                reward += self.STAGE8_CRITICAL_AMMO_NO_RELOAD_PENALTY
+                reward += self.STAGE8_CRITICAL_AMMO_NO_RELOAD_PENALTY * (1.50 if phase_index >= 5 else 1.0)
 
         if is_phase_8a and self.shots_fired <= 0 and not shot_fired_this_step and not getattr(learner, "reloading", False):
-            # 8A is a reload-sequence tutor, not an aim-hold stage.  After a short
-            # grace period the policy is pushed to fire the first round so it can
-            # reach the 3/9 reload target.
+            # Deprecated 8A tutor branch. Disabled by is_phase_8a=False after the
+            # Stage 8 simplification, but kept harmless for old log compatibility.
             if self.survival_steps > self.STAGE8_8A_NO_FIRST_SHOT_GRACE_STEPS:
                 self.stage8_no_first_shot_pressure_steps += 1
                 overdue_blocks = min(5.0, (self.survival_steps - self.STAGE8_8A_NO_FIRST_SHOT_GRACE_STEPS) / 40.0)
@@ -1484,9 +1560,7 @@ class RewardManager:
                 reward += self.STAGE8_8A_ALIGNED_NO_FIRST_SHOT_PENALTY
 
         if is_phase_8a and not getattr(learner, "reloading", False):
-            # In 8A the main sub-skill is the precise unmasked reload sequence.
-            # Reaching 3/9 after at least one shot is explicitly rewarded once,
-            # while sitting there without reloading is penalized.
+            # Deprecated 8A target-ammo tutor branch. Disabled by is_phase_8a=False.
             if learner.ammo == target_ammo_now and self.shots_fired >= 1 and self.stage8_reload_started <= 0:
                 self.stage8_target_ammo_steps += 1
                 if not self.stage8_target_ammo_reached:
@@ -1512,47 +1586,84 @@ class RewardManager:
                 max_ammo_before = int(event.data.get("max_ammo", learner.max_ammo))
                 target_ammo = max(1, int(round(float(max_ammo_before) / 3.0)))
 
-                # Stage 8 is intentionally strict now. With 4/9 starting ammo,
-                # reloading at 4 is still too early; the desired first reload is
-                # after spending at least one round, at exactly 3/9. This avoids
-                # the learned shortcut "spawn -> reload".
-                premature_reload = self.shots_fired < self.STAGE8_MIN_SHOTS_BEFORE_RELOAD
-                if premature_reload:
+                # Timely reload quality for Stage 8 endurance.  The intended
+                # final skill is a pre-empty reload, not shooting down to 0/20.
+                # 1-8/20 is good, 9-12/20 is acceptable, 0/20 is only a late
+                # rescue reload, and 13-20/20 is early/wasteful.
+                spent_from_magazine = max(0, max_ammo_before - ammo_before)
+                useful_magazine = (
+                    self.stage8_magazine_hits_since_reload > 0
+                    or self.stage8_magazine_damage_since_reload > 0.0
+                )
+                low_waste_magazine = self.stage8_magazine_no_los_shots_since_reload <= max(1, self.stage8_magazine_shots_since_reload // 2)
+                reload_context_ok = True
+                if phase_index >= 5:
+                    # Final phases require a useful magazine before a reload gets
+                    # quality credit.  This prevents two bad policies:
+                    # (1) reloading after only a few bullets, and
+                    # (2) dumping bullets into walls just to reach a low ammo count.
+                    reload_context_ok = (
+                        useful_magazine
+                        and low_waste_magazine
+                        and spent_from_magazine >= self.STAGE8_FINAL_MIN_USEFUL_AMMO_SPENT
+                    )
+
+                engaged_combat = (
+                    self.stage8_magazine_shots_since_reload >= self.STAGE8_MIN_SHOTS_BEFORE_RELOAD
+                    or useful_magazine
+                    or self.kills >= 1
+                )
+                wave_preparation = self.kills >= 1
+                good_ammo = max(1, int(math.floor(max_ammo_before * 0.40)))
+                acceptable_ammo = max(good_ammo, int(math.floor(max_ammo_before * 0.60)))
+
+                if not engaged_combat:
                     self.stage8_early_reloads += 1
+                    self.stage8_wasted_reloads += 1
                     self.stage8_reload_quality_sum += 0.0
                     reward += self.STAGE8_PREMATURE_RELOAD_PENALTY
-                    if is_phase_8a:
-                        reward += self.STAGE8_8A_EARLY_RELOAD_EXTRA_PENALTY
+                    if phase_index >= 5:
+                        reward += self.STAGE8_FINAL_WASTED_RELOAD_CHARGE_PENALTY
                 elif ammo_before <= 0:
-                    self.stage8_empty_reloads += 1
-                    self.stage8_reload_quality_sum += 0.0
-                    reward += self.STAGE8_EMPTY_RELOAD_PENALTY
-                    if is_phase_8a:
-                        reward += self.STAGE8_8A_EMPTY_SHOT_EXTRA_PENALTY
-                elif ammo_before == target_ammo:
-                    self.stage8_good_reloads += 1
-                    self.stage8_reload_quality_sum += 1.0
-                    # Safer reloads are preferred: no clear shot or not aligned.
-                    safety_scale = 1.0 if not current_clear_shot else 0.70
-                    if killable_now:
-                        safety_scale = 0.25
-                    reward += self.STAGE8_GOOD_RELOAD_REWARD * safety_scale
-                    if is_phase_8a:
-                        reward += self.STAGE8_8A_GOOD_RELOAD_EXTRA_REWARD
-                elif ammo_before == target_ammo - 1:
-                    self.stage8_acceptable_reloads += 1
-                    self.stage8_reload_quality_sum += 0.55
-                    reward += self.STAGE8_ACCEPTABLE_RELOAD_REWARD
-                elif ammo_before > target_ammo:
-                    self.stage8_early_reloads += 1
-                    self.stage8_reload_quality_sum += 0.0
-                    reward += self.STAGE8_EARLY_RELOAD_PENALTY
-                    if is_phase_8a:
-                        reward += self.STAGE8_8A_EARLY_RELOAD_EXTRA_PENALTY
-                else:
+                    # Late rescue: this is better than staying empty, but it is
+                    # not a timely reload and cannot satisfy the final 8E/8F gate.
+                    self.stage8_late_rescue_reloads += 1
                     self.stage8_late_reloads += 1
-                    self.stage8_reload_quality_sum += 0.20
-                    reward += self.STAGE8_LATE_RELOAD_PENALTY
+                    self.stage8_empty_reloads += 1
+                    self.stage8_reload_quality_sum += 0.15
+                    reward += self.STAGE8_LATE_RESCUE_RELOAD_REWARD
+                elif ammo_before <= good_ammo and reload_context_ok:
+                    self.stage8_good_reloads += 1
+                    self.stage8_timely_reloads += 1
+                    self.stage8_reload_quality_sum += 1.0
+                    safety_scale = 1.0 if not current_clear_shot else 0.80
+                    if killable_now:
+                        safety_scale = 0.45
+                    reward += self.STAGE8_GOOD_RELOAD_REWARD * 1.40 * safety_scale
+                    if wave_preparation:
+                        reward += self.STAGE8_BETWEEN_WAVE_RELOAD_REWARD
+                elif ammo_before <= acceptable_ammo and reload_context_ok:
+                    self.stage8_acceptable_reloads += 1
+                    self.stage8_timely_reloads += 1
+                    self.stage8_reload_quality_sum += 0.75
+                    reward += self.STAGE8_ACCEPTABLE_RELOAD_REWARD
+                    if wave_preparation:
+                        reward += self.STAGE8_BETWEEN_WAVE_RELOAD_REWARD * 0.60
+                else:
+                    self.stage8_early_reloads += 1
+                    self.stage8_wasted_reloads += 1
+                    self.stage8_reload_quality_sum += 0.0
+                    if phase_index >= 5:
+                        reward += self.STAGE8_EARLY_RELOAD_PENALTY * self.STAGE8_FINAL_EARLY_RELOAD_MULTIPLIER
+                        reward += self.STAGE8_FINAL_WASTED_RELOAD_CHARGE_PENALTY
+                    else:
+                        reward += self.STAGE8_EARLY_RELOAD_PENALTY * (0.55 if wave_preparation else 1.0)
+
+                # A new magazine starts after every reload attempt that begins.
+                self.stage8_magazine_shots_since_reload = 0
+                self.stage8_magazine_hits_since_reload = 0
+                self.stage8_magazine_damage_since_reload = 0.0
+                self.stage8_magazine_no_los_shots_since_reload = 0
 
                 if killable_now:
                     self.stage8_reload_while_killable += 1
@@ -1563,6 +1674,9 @@ class RewardManager:
                 # badly aimed, but these choices are explicitly penalized and
                 # logged so the skill is learned rather than hard-blocked.
                 ammo_before_shot = int(event.data.get("ammo_before", learner.ammo + 1))
+                self.stage8_magazine_shots_since_reload += 1
+                if phase_index >= 5 and 0 < ammo_before_shot <= 8 and not killable_now:
+                    reward += self.STAGE8_LOW_AMMO_SHOT_PENALTY
                 if is_phase_8a and self.stage8_reload_started <= 0 and not self.stage8_first_shot_rewarded and ammo_before_shot == target_ammo_now + 1:
                     self.stage8_first_shot_rewarded = True
                     reward += self.STAGE8_8A_FIRST_SHOT_REWARD
@@ -1571,7 +1685,30 @@ class RewardManager:
                     reward += self.STAGE8_8A_SHOOT_PAST_TARGET_PENALTY
                 if not current_line_of_sight or not current_clear_shot:
                     self.stage8_no_los_shot_attempts += 1
+                    self.stage8_magazine_no_los_shots_since_reload += 1
+                    self.stage8_consecutive_no_los_shots += 1
                     reward += self.STAGE8_NO_LOS_SHOT_ATTEMPT_PENALTY
+                    if phase_index >= 3:
+                        # Obstacle phases must learn trigger discipline through reward,
+                        # not through action masking. LOS loss is allowed; firing into
+                        # cover is the bad decision. Repeated blind shots are penalized
+                        # progressively so the bot stops wall-spraying, while a single
+                        # accidental shot is not made catastrophic.
+                        self.stage8_obstacle_no_los_shot_attempts += 1
+                        reward += self.STAGE8_OBSTACLE_NO_LOS_SHOT_EXTRA_PENALTY
+                        if self.stage8_consecutive_no_los_shots >= 2:
+                            extra = min(3.0, float(self.stage8_consecutive_no_los_shots - 1))
+                            reward += self.STAGE8_REPEATED_NO_LOS_SHOT_PENALTY * extra
+                            self.stage8_repeated_no_los_shot_penalties += 1
+                        if (
+                            current_speed <= self.STAGE8_BLIND_ROTATION_SPEED_THRESHOLD
+                            and abs_heading_delta > self.STAGE8_BLIND_ROTATION_HEADING_DELTA
+                            and self.los_lost_streak > self.STAGE8_BLIND_ROTATION_GRACE_STEPS
+                        ):
+                            reward += self.STAGE8_BLIND_ROTATION_SHOT_EXTRA_PENALTY
+                            self.stage8_blind_rotation_shots += 1
+                else:
+                    self.stage8_consecutive_no_los_shots = 0
                 if current_angle_error > self.STAGE8_ALIGNMENT_THRESHOLD:
                     self.stage8_unaligned_shot_attempts += 1
                     reward += self.STAGE8_UNALIGNED_SHOT_ATTEMPT_PENALTY
@@ -1580,6 +1717,27 @@ class RewardManager:
                     reward += self.STAGE8_SHOT_AFTER_RELOAD_REWARD
                     if is_phase_8a:
                         reward += self.STAGE8_8A_POST_RELOAD_SHOT_EXTRA_REWARD
+            elif event.kind == "invalid_action" and event.data.get("ability") == "shoot_without_clear_shot":
+                # Some no-LOS shoot attempts are represented by the environment as
+                # invalid actions rather than shot_fired events.  The base event
+                # reward already counts the attempt and applies the base penalty;
+                # this block adds the Stage 8 obstacle-specific pressure so blind
+                # trigger spam is punished consistently in both representations.
+                if phase_index >= 3:
+                    self.stage8_obstacle_no_los_shot_attempts += 1
+                    self.stage8_consecutive_no_los_shots += 1
+                    reward += self.STAGE8_OBSTACLE_NO_LOS_SHOT_EXTRA_PENALTY
+                    if self.stage8_consecutive_no_los_shots >= 2:
+                        extra = min(3.0, float(self.stage8_consecutive_no_los_shots - 1))
+                        reward += self.STAGE8_REPEATED_NO_LOS_SHOT_PENALTY * extra
+                        self.stage8_repeated_no_los_shot_penalties += 1
+                    if (
+                        current_speed <= self.STAGE8_BLIND_ROTATION_SPEED_THRESHOLD
+                        and abs_heading_delta > self.STAGE8_BLIND_ROTATION_HEADING_DELTA
+                        and self.los_lost_streak > self.STAGE8_BLIND_ROTATION_GRACE_STEPS
+                    ):
+                        reward += self.STAGE8_BLIND_ROTATION_SHOT_EXTRA_PENALTY
+                        self.stage8_blind_rotation_shots += 1
             elif event.kind == "shot_failed_no_ammo":
                 reward += self.STAGE8_EMPTY_TRIGGER_EXTRA_PENALTY
                 if is_phase_8a:
@@ -1587,6 +1745,9 @@ class RewardManager:
             elif event.kind == "shot_blocked":
                 reward += self.STAGE7_BLOCKED_SHOT_EXTRA_PENALTY
             elif event.kind == "shot_hit":
+                self.stage8_consecutive_no_los_shots = 0
+                self.stage8_magazine_hits_since_reload += 1
+                self.stage8_magazine_damage_since_reload += float(event.value)
                 if current_line_of_sight and current_clear_shot and current_angle_error <= self.STAGE8_ALIGNMENT_THRESHOLD:
                     self.stage8_clean_aligned_shots += 1
                     reward += self.STAGE8_CLEAN_ALIGNED_SHOT_REWARD
@@ -1649,6 +1810,80 @@ class RewardManager:
                     self.stage8_smooth_move_steps += 1
                     reward += self.STAGE8_SMOOTH_MOVE_REWARD
 
+        obstacle_recovery_state = (
+            phase_index >= 3
+            and enemy.is_alive
+            and learner.is_alive
+            and learner.ammo > 0
+            and not getattr(learner, "reloading", False)
+            and not current_line_of_sight
+        )
+        blind_rotation = (
+            obstacle_recovery_state
+            and current_speed <= self.STAGE8_BLIND_ROTATION_SPEED_THRESHOLD
+            and abs_heading_delta > self.STAGE8_BLIND_ROTATION_HEADING_DELTA
+            and self.los_lost_streak > self.STAGE8_BLIND_ROTATION_GRACE_STEPS
+        )
+        if obstacle_recovery_state and not moving and self.los_lost_streak > self.STAGE8_NO_LOS_STATIONARY_GRACE_STEPS:
+            # This is deliberately small and specific: it targets standing around an
+            # obstacle without punishing normal LOS break/recovery.
+            reward += self.STAGE8_NO_LOS_STATIONARY_PENALTY
+            self.stage8_no_los_stationary_penalty_steps += 1
+        if obstacle_recovery_state and moving:
+            # Prefer Stage-7-style repositioning over in-place spinning. This is
+            # deliberately small, because LOS loss itself is not a mistake in an
+            # obstacle phase; failing to recover it is the mistake.
+            reward += self.STAGE8_OBSTACLE_RECOVERY_MOVE_REWARD
+            if nav_reference is not None and getattr(nav_reference, "valid", False):
+                progress_delta = float(getattr(nav_reference, "progress_delta", 0.0) or 0.0)
+                desired_progress_delta = float(getattr(nav_reference, "desired_progress_delta", 0.0) or 0.0)
+                if max(progress_delta, desired_progress_delta) > 0.10:
+                    reward += self.STAGE8_OBSTACLE_RECOVERY_NAV_REWARD
+                elif progress_delta < -0.20:
+                    reward += self.STAGE8_OBSTACLE_RECOVERY_NAV_REGRESS_PENALTY
+        if blind_rotation:
+            self.stage8_blind_rotation_steps += 1
+            if self.stage8_blind_rotation_steps > self.STAGE8_BLIND_ROTATION_GRACE_STEPS:
+                reward += self.STAGE8_BLIND_ROTATION_PENALTY
+                self.stage8_blind_rotation_penalty_steps += 1
+        else:
+            self.stage8_blind_rotation_steps = 0
+
+        if phase_index >= 3 and enemy.is_alive and learner.is_alive and current_line_of_sight:
+            # Soft range discipline inherited from Stage 3: the agent should not
+            # rush into the stock bot. This is not an exact-distance script; it only
+            # discourages unsafe close-range collapse and rewards withdrawal from it.
+            if current_distance < self.STAGE8_MIN_COMBAT_DISTANCE:
+                self.stage8_too_close_steps += 1
+                close_ratio = (self.STAGE8_MIN_COMBAT_DISTANCE - current_distance) / max(1.0, self.STAGE8_MIN_COMBAT_DISTANCE)
+                reward += self.STAGE8_TOO_CLOSE_PENALTY * (0.50 + close_ratio)
+                if distance_delta > 2.0:
+                    self.stage8_close_withdraw_steps += 1
+                    reward += self.STAGE8_WITHDRAW_FROM_CLOSE_REWARD
+                elif distance_delta < -2.0:
+                    self.stage8_closing_when_too_close_steps += 1
+                    reward += self.STAGE8_CLOSING_WHEN_TOO_CLOSE_PENALTY
+                if current_distance < self.STAGE8_DANGER_CLOSE_DISTANCE:
+                    self.stage8_danger_close_steps += 1
+                    danger_ratio = (self.STAGE8_DANGER_CLOSE_DISTANCE - current_distance) / max(1.0, self.STAGE8_DANGER_CLOSE_DISTANCE)
+                    reward += self.STAGE8_DANGER_CLOSE_PENALTY * (0.75 + danger_ratio)
+
+        # Context-aware anti-passivity. This does not punish temporary
+        # line-of-sight loss, so Stage 7 cover/navigation behavior is preserved.
+        if hit_this_step:
+            self.stage8_steps_since_damage_dealt = 0
+        elif enemy.is_alive and learner.is_alive and learner.ammo > 0 and not getattr(learner, "reloading", False):
+            self.stage8_steps_since_damage_dealt += 1
+            if self.stage8_steps_since_damage_dealt > self.STAGE8_PASSIVITY_THRESHOLD_STEPS:
+                over = self.stage8_steps_since_damage_dealt - self.STAGE8_PASSIVITY_THRESHOLD_STEPS
+                penalty = self.STAGE8_PASSIVITY_BASE_PENALTY * min(30.0, float(over))
+                penalty = max(self.STAGE8_PASSIVITY_MAX_PENALTY, penalty)
+                reward += penalty
+                self.stage8_passivity_penalty_steps += 1
+                self.stage8_passivity_penalty_sum += penalty
+        else:
+            self.stage8_steps_since_damage_dealt = 0
+
         return reward
 
     def _pickup_reward(self, events: list[Event], learner: Agent) -> float:
@@ -1694,27 +1929,12 @@ class RewardManager:
         return self.stage_success_metric() >= 1.0
 
     def stage8_8a_sequence_success(self) -> bool:
-        """True once the 8A reload-tutor sequence has been completed.
+        """Deprecated after the Stage 8 simplification.
 
-        8A should teach only the basic reload timing chain:
-        fire once from 4/9, reach 3/9, reload at 3/9, then fire after reload.
-        Once this happens cleanly, the episode should end so later accidental
-        early/empty reloads cannot erase the learned sequence.
+        Stage 8 now uses sequential enemy waves rather than a special 8A
+        first-shot -> one-third-ammo -> reload script.
         """
-        if self.stage_id != "stage8":
-            return False
-        phase_index = max(1, min(5, int(getattr(self, "stage8_curriculum_phase_index", 5) or 5)))
-        if phase_index > 1:
-            return False
-        return (
-            bool(self.stage8_first_shot_rewarded)
-            and bool(self.stage8_target_ammo_reached)
-            and self.stage8_good_reloads >= 1
-            and self.stage8_shots_after_reload >= 1
-            and self.stage8_early_reloads == 0
-            and self.stage8_empty_reloads == 0
-            and self.stage8_shot_past_target_before_reload == 0
-        )
+        return False
 
     def stage_success_metric(self) -> float:
         metric, criteria = self._stage_metric_and_criteria()
@@ -2220,151 +2440,190 @@ class RewardManager:
             return (1.0 if all_criteria_ok else min(0.999, metric)), criteria
 
         if self.stage_id == "stage8":
-            phase_index = max(1, min(5, int(getattr(self, "stage8_curriculum_phase_index", 5) or 5)))
-            phase_label = {1: "8A", 2: "8B", 3: "8C", 4: "8D", 5: "8E"}.get(phase_index, "8E")
+            phase_index = max(1, min(6, int(getattr(self, "stage8_curriculum_phase_index", 6) or 6)))
+            phase_label = {1: "8A", 2: "8B", 3: "8C", 4: "8D", 5: "8E", 6: "8F"}.get(phase_index, "8F")
+            expected_waves = max(1, int(getattr(self, "stage8_expected_waves", 5)))
+            reload_required = expected_waves >= 5
+            waves_cleared = min(int(self.kills), expected_waves)
+            wave_clear_ratio = waves_cleared / expected_waves
             clear_shot_ratio = self.enemy_clear_shot_ratio()
             reload_quality = self.stage8_reload_quality_sum / max(1, self.stage8_reload_started)
-
-            if phase_index <= 1:
-                first_shot_ok = bool(self.stage8_first_shot_rewarded)
-                target_ok = bool(self.stage8_target_ammo_reached)
-                good_reload_ok = self.stage8_good_reloads >= 1
-                post_reload_ok = self.stage8_shots_after_reload >= 1
-                no_early_ok = self.stage8_early_reloads == 0
-                no_empty_ok = self.stage8_empty_reloads == 0
-                no_past_target_ok = self.stage8_shot_past_target_before_reload == 0
-                sequence_ok = (
-                    first_shot_ok
-                    and target_ok
-                    and good_reload_ok
-                    and post_reload_ok
-                    and no_early_ok
-                    and no_empty_ok
-                    and no_past_target_ok
-                )
-                qualities = [
-                    1.0 if first_shot_ok else 0.0,
-                    1.0 if target_ok else 0.0,
-                    1.0 if good_reload_ok else 0.0,
-                    min(self.stage8_shots_after_reload / 1.0, 1.0),
-                    1.0 if no_early_ok else 0.0,
-                    1.0 if no_empty_ok else 0.0,
-                    1.0 if no_past_target_ok else 0.0,
-                ]
-                metric = min(qualities)
-                add("8A first shot", first_shot_ok, f"first_shot_rewarded={int(first_shot_ok)}")
-                add("8A target ammo", target_ok, f"target_3_of_9_reached={int(target_ok)}; target_steps={self.stage8_target_ammo_steps}")
-                add("8A good reload", good_reload_ok, f"good_reloads={self.stage8_good_reloads}; reloads={self.stage8_reload_started}; quality={reload_quality:.2f}")
-                add("8A shot after reload", post_reload_ok, f"shots_after_reload={self.stage8_shots_after_reload} >= 1")
-                add("8A no early reload", no_early_ok, f"early_reloads={self.stage8_early_reloads} == 0")
-                add("8A no empty reload", no_empty_ok, f"empty_reloads={self.stage8_empty_reloads} == 0; empty_ammo_steps={self.stage8_empty_ammo_steps}")
-                add("8A no shot past target", no_past_target_ok, f"shot_past_target_before_reload={self.stage8_shot_past_target_before_reload} == 0")
-                return (1.0 if sequence_ok else min(0.999, metric)), criteria
-            good_reload_ratio = self.stage8_good_reloads / max(1, self.stage8_reload_started)
             aim_mean = self.aim_error_mean()
-            hit_rate = self.hit_rate()
+            no_los_shot_rate = self.stage8_no_los_shot_attempts / max(1, self.shots_fired)
 
-            # 8A/8B are reload-learning phases.  They do not require a clean kill;
-            # they require the agent to discover the unmasked reload timing and
-            # return to shooting after reload.  Later phases progressively restore
-            # full Stage 7 combat expectations.
-            if phase_index <= 1:
-                required_damage = 35.0
-                required_ratio = 0.35
-                min_hit_rate = 0.40
-                max_blocked_allowed = 0.20
-                win_ok = (self.damage_dealt >= required_damage or self.kills > 0) and self.deaths == 0
-            elif phase_index == 2:
-                required_damage = 55.0
-                required_ratio = 0.60
-                min_hit_rate = 0.50
-                max_blocked_allowed = 0.16
-                win_ok = (self.damage_dealt >= required_damage or self.kills > 0) and self.deaths == 0
-            elif phase_index == 3:
-                required_damage = 75.0
-                required_ratio = 0.80
-                min_hit_rate = 0.58
-                max_blocked_allowed = 0.12
-                win_ok = (self.damage_dealt >= required_damage or self.kills > 0) and self.deaths == 0
-            elif phase_index == 4:
-                required_damage = 90.0
-                required_ratio = 0.95
-                min_hit_rate = 0.65
-                max_blocked_allowed = 0.09
-                win_ok = (self.kills > 0 or self.damage_dealt >= required_damage) and self.deaths == 0
+            # Phase difficulty is about longer combat, not exact reload micro-rules.
+            # 8A now checks the basics: clear most waves, survive, reload at least
+            # once, and avoid extreme shooting/reload spam.  Smooth-control is not
+            # an 8A blocker; it becomes relevant once obstacles and pressure appear.
+            required_waves = max(1, expected_waves - 1) if phase_index <= 1 else max(1, expected_waves - 1)
+            required_wave_ratio = required_waves / expected_waves
+            min_hit_rate = {1: 0.40, 2: 0.45, 3: 0.50, 4: 0.55, 5: 0.60, 6: 0.55}.get(phase_index, 0.55)
+            max_blocked_allowed = {1: 0.22, 2: 0.16, 3: 0.13, 4: 0.10, 5: 0.08, 6: 0.10}.get(phase_index, 0.10)
+            max_blocked_shots = {1: 10, 2: 7, 3: 6, 4: 5, 5: 4, 6: 5}.get(phase_index, 5)
+            max_no_los_shot_rate = {1: 1.00, 2: 1.00, 3: 0.45, 4: 0.35, 5: 0.35, 6: 0.25}.get(phase_index, 0.35)
+            max_no_los_shots = {1: 999, 2: 999, 3: 8, 4: 7, 5: 8, 6: 5}.get(phase_index, 7)
+            min_visible_ratio = {1: 0.08, 2: 0.12, 3: 0.16, 4: 0.20, 5: 0.25, 6: 0.20}.get(phase_index, 0.20)
+            min_clear_ratio = {1: 0.020, 2: 0.030, 3: 0.040, 4: 0.050, 5: 0.060, 6: 0.050}.get(phase_index, 0.050)
+
+            wave_ok = waves_cleared >= required_waves
+            survival_ok = self.deaths == 0
+            
+            if not reload_required:
+                reload_score = 1.0
+            elif phase_index <= 1:
+                early_score = max(0.0, 1.0 - self.stage8_early_reloads / 2.0)
+                reload_score = min(
+                    1.0,
+                    0.45 * min(self.stage8_reload_started / 1.0, 1.0)
+                    + 0.35 * reload_quality
+                    + 0.20 * early_score,
+                )
             else:
-                required_damage = 100.0
-                required_ratio = 1.10
-                min_hit_rate = self.STAGE8_MIN_HIT_RATE
-                max_blocked_allowed = self.STAGE8_MAX_BLOCKED_RATE
-                win_ok = self.kills > 0 and self.deaths == 0
+                timely_component = min(self.stage8_timely_reloads / 1.0, 1.0) if phase_index >= 5 else min(self.stage8_reload_started / 1.0, 1.0)
+                reload_score = min(
+                    1.0,
+                    0.55 * timely_component
+                    + 0.25 * reload_quality
+                    + 0.20 * min(self.stage8_shots_after_reload / 1.0, 1.0),
+                )
 
+            if not reload_required:
+                reload_ok = True
+            elif phase_index <= 1:
+                reload_ok = (
+                    self.stage8_reload_started >= 1
+                    and (self.stage8_good_reloads >= 1 or self.stage8_acceptable_reloads >= 1)
+                    and reload_quality >= 0.20
+                    and self.stage8_early_reloads <= 2
+                    and self.stage8_empty_reloads <= 1
+                    and self.reload_failures <= 2
+                )
+            else:
+                if phase_index >= 5:
+                    reload_ok = (
+                        self.stage8_timely_reloads >= 1
+                        and self.stage8_shots_after_reload >= 1
+                        and reload_quality >= 0.35
+                        and self.reload_failures <= 1
+                    )
+                else:
+                    reload_ok = (
+                        self.stage8_reload_started >= 1
+                        and (self.stage8_good_reloads >= 1 or self.stage8_acceptable_reloads >= 1)
+                        and self.stage8_shots_after_reload >= 1
+                        and reload_quality >= (0.30 if phase_index <= 2 else 0.40)
+                        and self.stage8_empty_reloads <= (1 if phase_index <= 2 else 0)
+                        and self.reload_failures <= (2 if phase_index <= 2 else 1)
+                    )
+            shooting_ok = hit_rate >= min_hit_rate and self.shots_blocked <= max_blocked_shots
+            trigger_discipline_ok = phase_index < 3 or (
+                no_los_shot_rate <= max_no_los_shot_rate
+                and self.stage8_no_los_shot_attempts <= max_no_los_shots
+            )
+            max_blind_rotation_steps = {1: 9999, 2: 9999, 3: 90, 4: 80, 5: 9999, 6: 70}.get(phase_index, 80)
+            max_too_close_steps = {1: 9999, 2: 9999, 3: 180, 4: 160, 5: 9999, 6: 140}.get(phase_index, 160)
+            obstacle_control_ok = phase_index < 3 or phase_index == 5 or (
+                self.stage8_blind_rotation_penalty_steps <= max_blind_rotation_steps
+                and self.stage8_too_close_steps <= max_too_close_steps
+            )
             blocked_ok = blocked_rate <= max_blocked_allowed
-            ratio_ok = damage_ratio >= required_ratio or phase_index <= 2
-            aim_error_ok = aim_mean <= self.STAGE8_MAX_MEAN_AIM_ERROR
-            practical_aim_ok = (hit_rate >= self.STAGE8_MIN_HIT_RATE_FOR_AIM_OVERRIDE and self.stage8_unaligned_shot_attempts <= (3 if phase_index <= 2 else 0))
-            aim_ok = ((aim_error_ok or practical_aim_ok) and time_on_target_ratio >= (0.08 if phase_index <= 2 else self.STAGE8_MIN_TIME_ON_TARGET)) or phase_index <= 1
-            hit_ok = hit_rate >= min_hit_rate and self.shots_blocked <= (5 if phase_index <= 3 else 2)
-            visibility_ok = visible_ratio >= (0.12 if phase_index <= 2 else self.STAGE8_MIN_VISIBLE_RATIO) or self.damage_dealt >= required_damage
-            clear_ok = clear_shot_ratio >= (0.03 if phase_index <= 3 else self.STAGE8_MIN_CLEAR_SHOT_RATIO) or self.damage_dealt >= required_damage
-            if phase_index <= 1:
-                reload_ok = (
-                    self.stage8_reload_started >= 1
-                    and self.stage8_good_reloads >= 1
-                    and self.stage8_target_ammo_reached
-                    and self.stage8_shots_after_reload >= 1
-                    and reload_quality >= 0.65
-                    and self.stage8_early_reloads == 0
-                    and self.stage8_empty_reloads == 0
-                    and self.stage8_shot_past_target_before_reload == 0
-                    and self.shot_unavailable_count <= 4
-                    and self.reload_failures <= 1
-                )
-            else:
-                reload_ok = (
-                    self.stage8_reload_started >= 1
-                    and (self.stage8_good_reloads >= 1 or (phase_index <= 2 and self.stage8_acceptable_reloads >= 1))
-                    and self.stage8_shots_after_reload >= 1
-                    and reload_quality >= (0.45 if phase_index <= 2 else 0.55)
-                    and self.stage8_early_reloads <= (2 if phase_index <= 2 else 1)
-                    and self.stage8_empty_reloads <= (1 if phase_index <= 2 else 0)
-                    and self.stage8_reload_while_killable <= (1 if phase_index <= 3 else 0)
-                    and self.shot_unavailable_count <= (6 if phase_index <= 3 else self.STAGE8_MAX_UNAVAILABLE_SHOTS)
-                    and self.reload_failures <= (2 if phase_index <= 2 else self.STAGE8_MAX_RELOAD_FAILURES)
-                )
+            visibility_ok = visible_ratio >= min_visible_ratio or waves_cleared >= required_waves
+            clear_ok = clear_shot_ratio >= min_clear_ratio or waves_cleared >= required_waves
+            aim_ok = aim_mean <= self.STAGE8_MAX_MEAN_AIM_ERROR or hit_rate >= max(0.70, min_hit_rate + 0.10)
+
             episode_steps = max(1, self.survival_steps)
             stage8_turn_flip_rate = self.stage8_turn_flip_count / episode_steps
             stage8_movement_flip_rate = self.stage8_movement_flip_count / episode_steps
-            smooth_ok = (
-                self.stage8_blocked_spin_steps <= self.STAGE8_MAX_BLOCKED_SPIN_STEPS
-                and stage8_movement_flip_rate <= self.STAGE8_MAX_MOVEMENT_FLIP_RATE
-                and stage8_turn_flip_rate <= self.STAGE8_MAX_TURN_FLIP_RATE
+            if phase_index <= 1:
+                smooth_ok = True
+            else:
+                smooth_ok = (
+                    self.stage8_blocked_spin_steps <= self.STAGE8_MAX_BLOCKED_SPIN_STEPS
+                    and stage8_movement_flip_rate <= self.STAGE8_MAX_MOVEMENT_FLIP_RATE
+                    and stage8_turn_flip_rate <= self.STAGE8_MAX_TURN_FLIP_RATE
+                )
+
+            wave_score = min(wave_clear_ratio / max(required_wave_ratio, 1e-6), 1.0)
+            if not reload_required:
+                reload_score = 1.0
+            elif phase_index <= 1:
+                early_score = max(0.0, 1.0 - self.stage8_early_reloads / 2.0)
+                reload_score = min(
+                    1.0,
+                    0.45 * min(self.stage8_reload_started / 1.0, 1.0)
+                    + 0.35 * reload_quality
+                    + 0.20 * early_score,
+                )
+            else:
+                timely_component = min(self.stage8_timely_reloads / 1.0, 1.0) if phase_index >= 5 else min(self.stage8_reload_started / 1.0, 1.0)
+                reload_score = min(
+                    1.0,
+                    0.55 * timely_component
+                    + 0.25 * reload_quality
+                    + 0.20 * min(self.stage8_shots_after_reload / 1.0, 1.0),
+                )
+            shooting_score = min(hit_rate / max(min_hit_rate, 1e-6), 1.0) if self.shots_fired > 0 else 0.0
+            if phase_index < 3:
+                trigger_discipline_score = 1.0
+            else:
+                rate_excess = max(0.0, no_los_shot_rate - max_no_los_shot_rate)
+                count_excess = max(0.0, float(self.stage8_no_los_shot_attempts - max_no_los_shots))
+                trigger_discipline_score = min(
+                    max(0.0, 1.0 - rate_excess / max(max_no_los_shot_rate, 1e-6)),
+                    max(0.0, 1.0 - count_excess / max(1.0, float(max_no_los_shots))),
+                )
+            blocked_score = max(0.0, 1.0 - max(0.0, blocked_rate - max_blocked_allowed) / max(max_blocked_allowed, 1e-6))
+            if phase_index < 3 or phase_index == 5:
+                obstacle_control_score = 1.0
+            else:
+                obstacle_control_score = min(
+                    max(0.0, 1.0 - self.stage8_blind_rotation_penalty_steps / max(1.0, float(max_blind_rotation_steps))),
+                    max(0.0, 1.0 - self.stage8_too_close_steps / max(1.0, float(max_too_close_steps))),
+                )
+            survival_score = 1.0 if survival_ok else 0.0
+            if phase_index <= 1:
+                smooth_score = 1.0
+            else:
+                smooth_score = min(
+                    max(0.0, 1.0 - self.stage8_blocked_spin_steps / max(1.0, float(self.STAGE8_MAX_BLOCKED_SPIN_STEPS))),
+                    max(0.0, 1.0 - stage8_turn_flip_rate / max(self.STAGE8_MAX_TURN_FLIP_RATE, 1e-6)),
+                    max(0.0, 1.0 - stage8_movement_flip_rate / max(self.STAGE8_MAX_MOVEMENT_FLIP_RATE, 1e-6)),
+                )
+            if phase_index >= 3:
+                # From 8C onward, smooth control is diagnostic only.
+                # It should not block otherwise good obstacle combat.
+                smooth_score_for_metric = max(0.70, smooth_score)
+                smooth_ok_for_gate = True
+            else:
+                smooth_score_for_metric = smooth_score
+                smooth_ok_for_gate = smooth_ok
+
+            metric = min(wave_score, survival_score, reload_score, shooting_score, trigger_discipline_score, obstacle_control_score, blocked_score, smooth_score_for_metric)
+            all_ok = (
+                wave_ok
+                and survival_ok
+                and reload_ok
+                and shooting_ok
+                and trigger_discipline_ok
+                and obstacle_control_ok
+                and blocked_ok
+                and visibility_ok
+                and clear_ok
+                and aim_ok
+                and smooth_ok_for_gate
             )
 
-            qualities = [
-                1.0 if win_ok else min(self.damage_dealt / 105.0, 0.95),
-                max(0.0, 1.0 - max(0.0, blocked_rate - max_blocked_allowed) / max(max_blocked_allowed, 1e-6)),
-                min(damage_ratio / max(required_ratio, 1e-6), 1.0),
-                min(self.STAGE8_MAX_MEAN_AIM_ERROR / max(aim_mean, 1e-6), 1.0),
-                min(time_on_target_ratio / max(self.STAGE8_MIN_TIME_ON_TARGET, 1e-6), 1.0),
-                min(hit_rate / max(min_hit_rate, 1e-6), 1.0),
-                min(clear_shot_ratio / max(self.STAGE8_MIN_CLEAR_SHOT_RATIO, 1e-6), 1.0),
-                reload_quality,
-                max(0.0, 1.0 - self.stage8_blocked_spin_steps / max(1.0, float(self.STAGE8_MAX_BLOCKED_SPIN_STEPS))),
-                max(0.0, 1.0 - stage8_turn_flip_rate / max(self.STAGE8_MAX_TURN_FLIP_RATE, 1e-6)),
-                max(0.0, 1.0 - stage8_movement_flip_rate / max(self.STAGE8_MAX_MOVEMENT_FLIP_RATE, 1e-6)),
-            ]
-            metric = min(qualities)
-            all_ok = win_ok and blocked_ok and ratio_ok and aim_ok and hit_ok and visibility_ok and clear_ok and reload_ok and smooth_ok
-            add("win", win_ok, f"phase={phase_label}; kills={self.kills}, deaths={self.deaths}, damage={self.damage_dealt:.1f} >= {required_damage:.1f}")
-            add("blocked movement", blocked_ok, f"phase={phase_label}; blocked_rate={blocked_rate:.2%} <= {max_blocked_allowed:.2%}")
-            add("damage ratio", ratio_ok, f"phase={phase_label}; ratio={damage_ratio:.2f} >= {required_ratio:.2f}")
-            add("strict aim", aim_ok, f"aim_mean={aim_mean:.3f} <= {self.STAGE8_MAX_MEAN_AIM_ERROR:.3f} OR hit_rate={hit_rate:.2%} >= {self.STAGE8_MIN_HIT_RATE_FOR_AIM_OVERRIDE:.2%} with unaligned={self.stage8_unaligned_shot_attempts}; time_on_target={time_on_target_ratio:.2%} >= {self.STAGE8_MIN_TIME_ON_TARGET:.2%}")
-            add("clean shooting", hit_ok, f"phase={phase_label}; hit_rate={hit_rate:.2%} >= {min_hit_rate:.2%}; blocked_shots={self.shots_blocked}")
-            add("line of sight", visibility_ok, f"visible_ratio={visible_ratio:.2%} >= {self.STAGE8_MIN_VISIBLE_RATIO:.2%} or damage={self.damage_dealt:.1f}")
-            add("clear shot", clear_ok, f"clear_shot_ratio={clear_shot_ratio:.2%} >= {self.STAGE8_MIN_CLEAR_SHOT_RATIO:.2%} or damage={self.damage_dealt:.1f}")
-            add("tactical reload", reload_ok, f"reloads={self.stage8_reload_started}; good={self.stage8_good_reloads}; acceptable={self.stage8_acceptable_reloads}; shots_after_reload={self.stage8_shots_after_reload}; early={self.stage8_early_reloads}; late={self.stage8_late_reloads}; empty={self.stage8_empty_reloads}; quality={reload_quality:.2f}; good_ratio={good_reload_ratio:.2f}; unavailable={self.shot_unavailable_count}; failures={self.reload_failures}")
-            add("smooth control", smooth_ok, f"blocked_spin={self.stage8_blocked_spin_steps} <= {self.STAGE8_MAX_BLOCKED_SPIN_STEPS}; movement_flip_rate={stage8_movement_flip_rate:.2%} <= {self.STAGE8_MAX_MOVEMENT_FLIP_RATE:.2%} ({self.stage8_movement_flip_count}/{episode_steps}); turn_flip_rate={stage8_turn_flip_rate:.2%} <= {self.STAGE8_MAX_TURN_FLIP_RATE:.2%} ({self.stage8_turn_flip_count}/{episode_steps})")
+            add("waves cleared", wave_ok, f"phase={phase_label}; waves={waves_cleared}/{expected_waves} >= {required_waves}; kills={self.kills}")
+            add("survival", survival_ok, f"deaths={self.deaths}; damage_taken={self.damage_taken:.1f}")
+            add("reload endurance", reload_ok, f"reloads={self.stage8_reload_started}; timely={self.stage8_timely_reloads}; late_rescue={self.stage8_late_rescue_reloads}; good={self.stage8_good_reloads}; acceptable={self.stage8_acceptable_reloads}; shots_after_reload={self.stage8_shots_after_reload}; empty={self.stage8_empty_reloads}; quality={reload_quality:.2f}; failures={self.reload_failures}")
+            add("clean shooting", shooting_ok, f"hit_rate={hit_rate:.2%} >= {min_hit_rate:.2%}; blocked_shots={self.shots_blocked} <= {max_blocked_shots}")
+            add("trigger discipline", trigger_discipline_ok, f"no_los_shots={self.stage8_no_los_shot_attempts} <= {max_no_los_shots}; no_los_rate={no_los_shot_rate:.2%} <= {max_no_los_shot_rate:.2%}; repeated_no_los={self.stage8_repeated_no_los_shot_penalties}")
+            add("obstacle control", obstacle_control_ok, f"blind_rotation_penalty_steps={self.stage8_blind_rotation_penalty_steps} <= {max_blind_rotation_steps}; too_close_steps={self.stage8_too_close_steps} <= {max_too_close_steps}; danger_close={self.stage8_danger_close_steps}")
+            add("blocked movement", blocked_ok, f"blocked_rate={blocked_rate:.2%} <= {max_blocked_allowed:.2%}")
+            add("line of sight", visibility_ok, f"visible_ratio={visible_ratio:.2%} >= {min_visible_ratio:.2%} or waves cleared")
+            add("clear shot", clear_ok, f"clear_shot_ratio={clear_shot_ratio:.2%} >= {min_clear_ratio:.2%} or waves cleared")
+            add("aim retained", aim_ok, f"aim_mean={aim_mean:.3f} <= {self.STAGE8_MAX_MEAN_AIM_ERROR:.3f} or hit_rate={hit_rate:.2%}")
+            add("smooth control", smooth_ok, f"blocked_spin={self.stage8_blocked_spin_steps}; movement_flip_rate={stage8_movement_flip_rate:.2%}; turn_flip_rate={stage8_turn_flip_rate:.2%}")
             return (1.0 if all_ok else min(0.999, metric)), criteria
 
         return 0.0, criteria
@@ -2413,6 +2672,9 @@ class RewardManager:
             "stage8_curriculum_level": self.stage8_curriculum_level,
             "stage8_curriculum_total_levels": self.stage8_curriculum_total_levels,
             "stage8_curriculum_phase_index": self.stage8_curriculum_phase_index,
+            "stage8_enemy_waves": int(getattr(self, "stage8_expected_waves", 5)),
+            "stage8_waves_cleared": min(int(self.kills), int(getattr(self, "stage8_expected_waves", 5))),
+            "stage8_wave_clear_ratio": min(int(self.kills), int(getattr(self, "stage8_expected_waves", 5))) / max(1, int(getattr(self, "stage8_expected_waves", 5))),
             "invalid_actions": self.invalid_actions,
             "shot_unavailable_count": self.shot_unavailable_count,
             "reload_failures": self.reload_failures,
@@ -2434,6 +2696,8 @@ class RewardManager:
             "useful_pickups": self.useful_pickups,
             "useless_pickups": self.useless_pickups,
             "stage8_reload_started": self.stage8_reload_started,
+            "stage8_timely_reloads": self.stage8_timely_reloads,
+            "stage8_late_rescue_reloads": self.stage8_late_rescue_reloads,
             "stage8_good_reloads": self.stage8_good_reloads,
             "stage8_acceptable_reloads": self.stage8_acceptable_reloads,
             "stage8_early_reloads": self.stage8_early_reloads,
@@ -2455,6 +2719,18 @@ class RewardManager:
             "stage8_shots_after_reload": self.stage8_shots_after_reload,
             "stage8_unaligned_shot_attempts": self.stage8_unaligned_shot_attempts,
             "stage8_no_los_shot_attempts": self.stage8_no_los_shot_attempts,
+            "stage8_obstacle_no_los_shot_attempts": self.stage8_obstacle_no_los_shot_attempts,
+            "stage8_no_los_shot_rate": self.stage8_no_los_shot_attempts / max(1, self.shots_fired),
+            "stage8_no_los_stationary_penalty_steps": self.stage8_no_los_stationary_penalty_steps,
+            "stage8_blind_rotation_steps": self.stage8_blind_rotation_steps,
+            "stage8_blind_rotation_penalty_steps": self.stage8_blind_rotation_penalty_steps,
+            "stage8_blind_rotation_shots": self.stage8_blind_rotation_shots,
+            "stage8_consecutive_no_los_shots": self.stage8_consecutive_no_los_shots,
+            "stage8_repeated_no_los_shot_penalties": self.stage8_repeated_no_los_shot_penalties,
+            "stage8_too_close_steps": self.stage8_too_close_steps,
+            "stage8_danger_close_steps": self.stage8_danger_close_steps,
+            "stage8_close_withdraw_steps": self.stage8_close_withdraw_steps,
+            "stage8_closing_when_too_close_steps": self.stage8_closing_when_too_close_steps,
             "stage8_aim_hold_steps": self.stage8_aim_hold_steps,
             "stage8_aim_improve_steps": self.stage8_aim_improve_steps,
             "stage8_aim_worse_steps": self.stage8_aim_worse_steps,
@@ -2465,6 +2741,14 @@ class RewardManager:
             "stage8_movement_flip_count": self.stage8_movement_flip_count,
             "stage8_movement_flip_rate": self.stage8_movement_flip_count / steps_safe,
             "stage8_smooth_move_steps": self.stage8_smooth_move_steps,
+            "stage8_passivity_penalty_steps": self.stage8_passivity_penalty_steps,
+            "stage8_passivity_penalty_sum": self.stage8_passivity_penalty_sum,
+            "stage8_steps_since_damage_dealt": self.stage8_steps_since_damage_dealt,
+            "stage8_wasted_reloads": self.stage8_wasted_reloads,
+            "stage8_magazine_shots_since_reload": self.stage8_magazine_shots_since_reload,
+            "stage8_magazine_hits_since_reload": self.stage8_magazine_hits_since_reload,
+            "stage8_magazine_damage_since_reload": self.stage8_magazine_damage_since_reload,
+            "stage8_magazine_no_los_shots_since_reload": self.stage8_magazine_no_los_shots_since_reload,
             "damage_dealt": self.damage_dealt,
             "damage_taken": self.damage_taken,
             "damage_dealt_taken_ratio": self.damage_dealt_taken_ratio(),
@@ -2554,10 +2838,11 @@ class RewardManager:
         self.stage7_curriculum_total_levels = int(max(0, total_levels))
         self.stage7_curriculum_phase_index = int(max(1, min(5, phase_index)))
 
-    def set_stage8_curriculum_phase(self, level: int, total_levels: int, phase_index: int) -> None:
+    def set_stage8_curriculum_phase(self, level: int, total_levels: int, phase_index: int, enemy_waves: int = 5) -> None:
         self.stage8_curriculum_level = int(max(0, level))
         self.stage8_curriculum_total_levels = int(max(0, total_levels))
-        self.stage8_curriculum_phase_index = int(max(1, min(5, phase_index)))
+        self.stage8_curriculum_phase_index = int(max(1, min(6, phase_index)))
+        self.stage8_expected_waves = int(max(1, enemy_waves))
 
     def enemy_visible_ratio(self, steps: int | None = None) -> float:
         denominator = max(1, steps or self.aim_error_count)

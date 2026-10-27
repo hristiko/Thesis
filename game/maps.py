@@ -118,6 +118,28 @@ STAGE7_ONE_OBSTACLE_VARIANTS: list[list[RectObstacle]] = [
     [RectObstacle(430, 170, 140, 320)],
 ]
 
+# Stage 8 obstacle bridge maps. These deliberately use easy one-obstacle
+# variants and spawn pairs so 8D matches the curriculum definition
+# instead of accidentally becoming a multi-obstacle Stage 7/8E task.
+STAGE8_OBSTACLE_BRIDGE_SPAWNS = [
+    OBSTACLE_STAGE_SPAWNS[0],
+    OBSTACLE_STAGE_SPAWNS[1],
+    OBSTACLE_STAGE_SPAWNS[2],
+]
+
+STAGE8_OBSTACLE_BRIDGE_VALIDATION_SPAWNS = [
+    OBSTACLE_VALIDATION_SPAWNS[0],
+    OBSTACLE_VALIDATION_SPAWNS[2],
+]
+
+STAGE8_OBSTACLE_BRIDGE_VARIANTS: list[list[RectObstacle]] = [
+    STAGE7_ONE_OBSTACLE_VARIANTS[0],
+]
+
+STAGE8_OBSTACLE_BRIDGE_VALIDATION_VARIANTS: list[list[RectObstacle]] = [
+    STAGE7_ONE_OBSTACLE_VARIANTS[1],
+]
+
 STAGE7_TWO_OBSTACLE_VARIANTS: list[list[RectObstacle]] = [
     [CENTER_BLOCK, TOP_LEFT_BLOCK],
     [RectObstacle(430, 170, 140, 320), RectObstacle(210, 560, 150, 80)],
@@ -273,25 +295,43 @@ def build_layout(
         return MapLayout(ARENA_WIDTH, ARENA_HEIGHT, obstacles=list(obstacles), pickups=list(pickups), spawns=list(spawns), spawn_pair_ids=list(range(len(spawns))))
 
     if stage_id == "stage8":
-        # Stage 8 is phased so the unmasked reload policy learns reload timing
-        # before full obstacle-combat pressure.  8A/8B are open arena; 8C adds
-        # one obstacle; 8D adds three-obstacle combat; 8E is final four-obstacle
-        # validation.
+        # Stage 8 is reload-endurance combat with sequential enemy waves.
+        # 8A/8B are open arena. 8C/8D/8E/8F use controlled one-obstacle
+        # bridge layouts so the map difficulty matches training/callbacks.py.
+        #
+        # This avoids the previous mismatch where 8D was defined as a simple
+        # one-obstacle bridge in the curriculum but build_layout could still
+        # sample harder multi-obstacle maps, causing deterministic evaluation
+        # to freeze or collide around obstacles before combat started.
         phase_index = 5 if validation and stage8_phase_index is None else int(stage8_phase_index or 1)
-        phase_index = max(1, min(5, phase_index))
-        if phase_index <= 2:
+        phase_index = max(1, min(6, phase_index))
+
+        if phase_index <= 2 or phase_index == 5:
             spawns = OPEN_VALIDATION_SPAWNS if validation else OPEN_COMBAT_SPAWNS
-            return MapLayout(ARENA_WIDTH, ARENA_HEIGHT, obstacles=[], pickups=[], spawns=list(spawns), spawn_pair_ids=list(range(len(spawns))))
-        if phase_index == 3:
-            obstacle_variants = STAGE7_ONE_OBSTACLE_VARIANTS
-        elif phase_index == 4:
-            obstacle_variants = OBSTACLE_VALIDATION_VARIANTS if validation else OBSTACLE_VARIANTS
-        else:
-            obstacle_variants = STAGE7_FOUR_OBSTACLE_VALIDATION_VARIANTS if validation else STAGE7_FOUR_OBSTACLE_VARIANTS
+            return MapLayout(
+                ARENA_WIDTH,
+                ARENA_HEIGHT,
+                obstacles=[],
+                pickups=[],
+                spawns=list(spawns),
+                spawn_pair_ids=list(range(len(spawns))),
+            )
+
+        obstacle_variants = (
+            STAGE8_OBSTACLE_BRIDGE_VALIDATION_VARIANTS
+            if validation
+            else STAGE8_OBSTACLE_BRIDGE_VARIANTS
+        )
         obstacle_variant_id = _choice_index(obstacle_variants, rng)
         obstacles = list(obstacle_variants[obstacle_variant_id])
-        spawn_pool = OBSTACLE_VALIDATION_SPAWNS if validation else OBSTACLE_STAGE_SPAWNS
+
+        spawn_pool = (
+            STAGE8_OBSTACLE_BRIDGE_VALIDATION_SPAWNS
+            if validation
+            else STAGE8_OBSTACLE_BRIDGE_SPAWNS
+        )
         valid_spawns, spawn_pair_ids = _valid_spawns_for_obstacles(list(spawn_pool), obstacles)
+
         return MapLayout(
             ARENA_WIDTH,
             ARENA_HEIGHT,
