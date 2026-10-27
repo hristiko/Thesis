@@ -15,12 +15,7 @@ from navigation.path_reference import NavigationReference
 
 
 class RewardManager:
-    """Stage-aware reward and metric manager for PPO.
-
-    The main objective remains to win the duel while surviving.  Shaping rewards
-    are intentionally smaller than kill/death and damage terms so the policy does
-    not learn to farm auxiliary signals such as line-of-sight toggles or pickups.
-    """
+    
 
     KILL_REWARD = 22.0
     DEATH_PENALTY = -24.0
@@ -68,9 +63,7 @@ class RewardManager:
     STAGE1_REQUIRED_STEPS = 300
 
     STAGE2_ALIGN_THRESHOLD = 0.16
-    # Stage 2 must learn shot timing, not just hold the crosshair near the target.
-    # The wider align threshold is retained for aim-retention metrics, while the
-    # tighter fire thresholds decide whether a shot was actually well timed.
+    
     STAGE2_FIRE_THRESHOLD = 0.075
     STAGE2_STRONG_FIRE_THRESHOLD = 0.045
     STAGE2_REQUIRED_HITS = 4
@@ -94,9 +87,7 @@ class RewardManager:
     STAGE3_REQUIRED_GOOD_STEPS = 105
     STAGE3_REQUIRED_MOVEMENT = 190.0
     STAGE3_AIM_SHAPING_SCALE = 0.38
-    # Moderate combined Stage 3 bonus. This is intentionally not the main
-    # reward; it only reinforces the full desired state together:
-    # good aim + visibility + correct distance.
+    
     STAGE3_COMBINED_REWARD_SCALE = 0.110
     STAGE3_AIM_QUALITY_DECAY = 4.5
     STAGE3_VISIBILITY_DISCOVERY_FLOOR = 0.15
@@ -113,9 +104,7 @@ class RewardManager:
     STAGE3_MOVEMENT_ACTIVITY_REWARD = 0.002
     STAGE3_MOVEMENT_JITTER_PENALTY = -0.055
 
-    # Stage 3 closed-loop combat-distance control. These terms teach the
-    # desired behavior directly: chase when too far, withdraw when too close,
-    # and stabilize when the ideal combat distance is reached.
+   
     STAGE3_RANGE_QUALITY_REWARD = 0.050
     STAGE3_AIM_QUALITY_REWARD = 0.045
     STAGE3_VISIBILITY_REWARD = 0.020
@@ -131,15 +120,11 @@ class RewardManager:
     STAGE3_NAV_MAX_SCALE = 0.42
     STAGE3_VERY_BAD_AIM_THRESHOLD = 0.65
     STAGE3_MOVING_BAD_AIM_PENALTY = -0.045
-    # Anti-freeze movement terms for Stage 3. These are active only when
-    # distance correction is needed, so they do not push the agent to wander
-    # after it reaches the ideal combat band.
+    
     STAGE3_NEEDED_MOVEMENT_REWARD = 0.035
     STAGE3_NEEDED_STATIONARY_PENALTY = -0.035
     STAGE3_STATIONARY_GRACE_STEPS = 20
-    # Checkpoint-compatible Stage 3 refinement. These terms do not change
-    # observations, actions, or metrics; they only make the existing reward
-    # less likely to punish correct tactical slowing/stabilization.
+  
     STAGE3_TACTICAL_POCKET_REWARD = 0.030
     STAGE3_TACTICAL_POCKET_SLOW_REWARD = 0.018
     STAGE3_SMOOTH_CORRECTION_REWARD = 0.012
@@ -157,8 +142,7 @@ class RewardManager:
     STAGE3_MAX_MEAN_AIM_ERROR = 0.55
     STAGE3_MIN_RANGE_CONTROL_RATIO = 0.52
 
-    # Stage 5 is centered on successful moving combat output. These terms are
-    # stronger than passive aim/range shaping, but still below kill/death events.
+    
     STAGE5_MOVING_HIT_BONUS = 1.650
     STAGE5_STATIONARY_SHOT_PENALTY = -0.220
     STAGE5_STATIONARY_HIT_PENALTY = -0.450
@@ -168,10 +152,7 @@ class RewardManager:
     STAGE5_HESITATION_PENALTY = -0.006
     STAGE5_MIN_MOVING_SPEED_RATIO = 0.12
 
-    # Stage 6 reintroduces full open-arena combat.  The shaping is still below
-    # kill/death and damage events, but it pushes the Stage 5 kill-race policy
-    # toward cleaner wins: less damage taken, fewer projectile hits, and fewer
-    # useless reload/shoot attempts.
+
     STAGE6_CLEAN_DAMAGE_BONUS = 0.006
     STAGE6_LOW_DAMAGE_PENALTY = -0.008
     STAGE6_RELOAD_FAILURE_EXTRA_PENALTY = -0.060
@@ -179,9 +160,7 @@ class RewardManager:
     STAGE6_PROJECTILE_HIT_EXTRA_PENALTY = -0.140
     STAGE6_ALIGNED_MOVING_PRESSURE_REWARD = 0.006
 
-    # Stage 7 must not be solvable by waiting for the enemy to walk around
-    # cover.  These terms specifically reward active line-of-sight search and
-    # punish standing still while the enemy is hidden.
+    
     STAGE7_SEARCH_MOVEMENT_REWARD = 0.006
     STAGE7_NO_LOS_STATIONARY_PENALTY = -0.110
     STAGE7_ACTIVE_LOS_REGAIN_BONUS = 0.420
@@ -205,21 +184,16 @@ class RewardManager:
     STAGE7_UNCLEAN_SHOT_ATTEMPT_PENALTY = -0.420
     STAGE7_CLEAN_HIT_BONUS = 0.450
 
-    # Stage 8: final tactical reload management with retained movement/aiming.
-    # Tactical mistakes are not action-masked in the final setup; they are
-    # learned through reward penalties and validation metrics.
+    
     STAGE8_TARGET_RELOAD_RATIO = 0.60
-    # Stage 8 is now an endurance stage.  Good reloads are useful reloads in
-    # longer combat, not exact one-third-magazine reloads.
+    
     STAGE8_GOOD_RELOAD_BAND = 0.60
     STAGE8_ACCEPTABLE_RELOAD_BAND = 0.75
     STAGE8_GOOD_RELOAD_REWARD = 3.200
     STAGE8_ACCEPTABLE_RELOAD_REWARD = 1.700
     STAGE8_BETWEEN_WAVE_RELOAD_REWARD = 1.000
     STAGE8_EARLY_RELOAD_PENALTY = -0.650
-    # In final 8E/8F, early reloads waste scarce reload charges and later cause
-    # empty-ammo collapse.  Keep reload physically available, but make high-ammo
-    # reloads clearly worse than spending useful bullets first.
+    
     STAGE8_FINAL_EARLY_RELOAD_MULTIPLIER = 3.00
     STAGE8_FINAL_WASTED_RELOAD_CHARGE_PENALTY = -0.900
     STAGE8_FINAL_MIN_USEFUL_AMMO_SPENT = 8
@@ -239,13 +213,11 @@ class RewardManager:
     STAGE8_CLEAN_ALIGNED_SHOT_REWARD = 0.280
     STAGE8_UNALIGNED_SHOT_ATTEMPT_PENALTY = -0.520
     STAGE8_NO_LOS_SHOT_ATTEMPT_PENALTY = -0.300
-    # Stage 8 obstacle phases must not learn to solve waves by firing through cover.
-    # This remains reward shaping only; shooting without LOS is still selectable.
+    
     STAGE8_OBSTACLE_NO_LOS_SHOT_EXTRA_PENALTY = -0.120
     STAGE8_NO_LOS_STATIONARY_GRACE_STEPS = 20
     STAGE8_NO_LOS_STATIONARY_PENALTY = -0.075
-    # Stage 8 obstacle discipline: discourage blind in-place rotation and repeated
-    # wall shooting without using masks.  LOS loss itself remains allowed.
+    
     STAGE8_BLIND_ROTATION_SPEED_THRESHOLD = 10.0
     STAGE8_BLIND_ROTATION_HEADING_DELTA = 0.050
     STAGE8_BLIND_ROTATION_GRACE_STEPS = 12
@@ -255,8 +227,7 @@ class RewardManager:
     STAGE8_OBSTACLE_RECOVERY_MOVE_REWARD = 0.035
     STAGE8_OBSTACLE_RECOVERY_NAV_REWARD = 0.060
     STAGE8_OBSTACLE_RECOVERY_NAV_REGRESS_PENALTY = -0.045
-    # Stage 8 range discipline: do not force an exact distance, but prevent the
-    # learner from rushing directly into the stock bot.
+    
     STAGE8_MIN_COMBAT_DISTANCE = 155.0
     STAGE8_DANGER_CLOSE_DISTANCE = 105.0
     STAGE8_TOO_CLOSE_PENALTY = -0.085
@@ -281,8 +252,7 @@ class RewardManager:
     STAGE8_NO_POST_RELOAD_COMBAT_PENALTY = -0.018
     STAGE8_MIN_SHOTS_BEFORE_RELOAD = 1
     STAGE8_PREMATURE_RELOAD_PENALTY = -1.100
-    # Deprecated 8A reload-tutor constants kept for backward-compatible logs.
-    # The current Stage 8 design uses sequential enemy waves instead.
+    
     STAGE8_8A_REACH_TARGET_AMMO_REWARD = 0.850
     STAGE8_8A_TARGET_AMMO_HOLD_REWARD = 0.018
     STAGE8_8A_TARGET_NO_RELOAD_PENALTY = -0.160
@@ -699,8 +669,7 @@ class RewardManager:
         heading_delta_abs = abs(heading_delta)
         rotation_sign = 1 if heading_delta > 1e-5 else -1 if heading_delta < -1e-5 else 0
 
-        # Stage 1 must learn stable tracking over the whole episode. Dense error
-        # shaping makes doing nothing and random spinning worse than reducing error.
+        
         if current_line_of_sight:
             reward += 0.060 * (1.0 - normalized_error) - 0.030 * normalized_error
             if improvement > 0.010:
@@ -747,10 +716,7 @@ class RewardManager:
         current_line_of_sight: bool,
         current_angle_error: float,
     ) -> float:
-        # Stage 2 is a shooting-timing stage. Aim retention remains useful, but
-        # the policy must learn trigger discipline: fire only when the current
-        # ray is actually a clean Glock line toward the enemy, not merely when the
-        # enemy is visible somewhere in the arena.
+       
         reward = 0.45 * self._aim_tracking_reward(current_line_of_sight, current_angle_error, self.STAGE2_ALIGN_THRESHOLD)
         normalized_error = min(1.0, current_angle_error / math.pi)
         if current_line_of_sight:
@@ -773,8 +739,7 @@ class RewardManager:
                     self.valid_shots += 1
                     reward += self.STAGE2_PRECISE_SHOT_REWARD
                 else:
-                    # A visible enemy is not enough. If the active firing ray is
-                    # not clean, the shot is treated as bad trigger discipline.
+                    
                     self.bad_shots += 1
                     reward += self.BAD_SHOT_PENALTY
                     if current_line_of_sight and current_angle_error < self.STAGE2_ALIGN_THRESHOLD:
@@ -787,18 +752,15 @@ class RewardManager:
             elif event.kind == "shot_missed":
                 reward += self.STAGE2_EXTRA_MISS_PENALTY
             elif event.kind == "shot_blocked":
-                # In open Stage 2 maps, most wall-blocked projectiles are simply
-                # bad/wasted shots that travelled past the enemy and hit the arena.
+                
                 reward += self.STAGE2_EXTRA_BLOCKED_SHOT_PENALTY
 
         if learner.fire_ready >= 0.5 and not shot_fired_this_step:
             if strong_clean_now:
-                # Tiny pressure to fire only at very high-confidence moments.
+                
                 reward += self.STAGE2_HESITATION_PENALTY
             elif not clean_now:
-                # Tiny patience reward. This is deliberately small so the agent
-                # does not learn passivity; it only makes waiting better than
-                # firing an obviously unclean shot.
+                
                 reward += self.STAGE2_PATIENCE_REWARD
         return reward
 
@@ -808,8 +770,7 @@ class RewardManager:
         direction = Vec2(math.cos(learner.heading), math.sin(learner.heading))
         muzzle = learner.position + direction * 20.0
         distance_to_enemy = muzzle.distance_to(enemy.position)
-        # The check mirrors the actual Glock line at the moment of firing. It is
-        # used only for reward shaping; it does not control or mask the action.
+        
         ray = detection.trace_ray(
             world=world,
             origin=muzzle,
@@ -825,9 +786,7 @@ class RewardManager:
         return ray.hit_type == detection.HIT_ENEMY and ray.hit_agent_id == enemy.agent_id
 
     def _shot_event_ray_hits_enemy(self, event: Event, enemy: Agent, world: World) -> bool:
-        # Use the enemy position even if the shot killed the enemy during this tick.
-        # Otherwise clean kill shots would be incorrectly treated as unclean after
-        # damage resolution sets enemy.is_alive to False.
+        
         try:
             position_xy = event.data.get("owner_position")
             heading = float(event.data.get("owner_heading"))
@@ -861,9 +820,7 @@ class RewardManager:
         nav_reference: NavigationReference | None,
         boundary_clearance: float,
     ) -> float:
-        # Stage 3 is not just path following. The intended behavior is closed-loop
-        # combat tracking: detect the enemy, keep aim aligned, move to the ideal
-        # combat distance, and then continuously chase/withdraw as the enemy moves.
+        
         reward = self.STAGE3_AIM_SHAPING_SCALE * self._aim_tracking_reward(
             current_line_of_sight,
             current_angle_error,
@@ -890,10 +847,7 @@ class RewardManager:
         correcting_range_direction = self._stage3_is_correcting_range(current_distance)
         range_correction_needed = current_line_of_sight and not in_useful_range
 
-        # Mostly additive shaping: the agent receives separate feedback for
-        # range, aim, visibility, wall safety, A* progress, and smoothness. This
-        # avoids the previous problem where range*aim*visibility could become too
-        # small whenever one component was weak.
+        
         reward += self.STAGE3_RANGE_QUALITY_REWARD * range_quality
         if current_line_of_sight:
             reward += self.STAGE3_VISIBILITY_REWARD
@@ -902,11 +856,7 @@ class RewardManager:
             self.range_streak_steps = 0
             reward -= 0.050
 
-        # Reintroduced moderate combined-quality bonus. It gives full credit
-        # only when the agent is actually in useful range. Outside useful range,
-        # it gives partial credit only if the agent is moving in the correct
-        # chase/withdraw direction. This prevents the deterministic eval policy
-        # from farming aim + visibility while standing still.
+        
         if in_useful_range:
             combined_scale = 1.0
         elif moving and correcting_range_direction:
@@ -917,8 +867,7 @@ class RewardManager:
             combined_scale = 0.0
         reward += self.STAGE3_COMBINED_REWARD_SCALE * combined_quality * combined_scale
 
-        # Direct distance-control shaping: chase if too far, withdraw
-        # if too close, stabilize if already near the ideal distance.
+        
         reward += self._stage3_distance_transition_reward(current_distance, current_line_of_sight)
 
         if stage3_aligned:
@@ -931,15 +880,11 @@ class RewardManager:
         else:
             self.aligned_consecutive_steps = 0
 
-        # Keep one small conjunctive bonus for the actual desired combined state.
-        # This says: the best state is visible enemy + usable aim + useful range.
+        
         if stage3_aligned and in_useful_range:
             reward += self.STAGE3_COMBINED_TRACKING_BONUS
 
-        # Tactical pocket exemption: once the agent is close to the ideal combat
-        # distance and has usable aim, slowing down is not passivity. This helps
-        # Stage 3 learn to stabilize instead of constantly overshooting, while
-        # keeping anti-freeze pressure active when distance correction is needed.
+       
         if in_tactical_pocket:
             reward += self.STAGE3_TACTICAL_POCKET_REWARD * aim_quality
             if slow_or_still_in_pocket:
@@ -949,8 +894,7 @@ class RewardManager:
             closeness = 1.0 - max(0.0, boundary_clearance) / max(1.0, self.BOUNDARY_SAFE_DISTANCE)
             reward += self.BOUNDARY_HUGGING_PENALTY * closeness
 
-        # Explicitly discourage rushing directly into the enemy. The desired
-        # combat point is near ideal range, not on top of the target.
+        
         if current_distance < min_useful_range:
             too_close_ratio = min(1.0, (min_useful_range - current_distance) / max(1.0, min_useful_range))
             reward += self.TOO_CLOSE_RANGE_PENALTY * too_close_ratio
@@ -964,15 +908,11 @@ class RewardManager:
         elif current_line_of_sight:
             self.range_streak_steps = 0
             normalized_range_error = min(1.0, distance_error_now / max(1.0, self.IDEAL_COMBAT_RANGE))
-            # Being out of range is bad, but if the agent is already correcting
-            # in the right direction, punish it less harshly so it does not panic
-            # and rush/jitter just to remove the range error.
+            
             penalty_scale = 0.35 if correcting_range_direction else 1.0
             reward += self.STAGE3_OUT_OF_RANGE_PENALTY * normalized_range_error * penalty_scale
 
-        # Stage 3 is a movement stage. If the distance is wrong, standing still
-        # must be worse than making a correct chase/withdraw adjustment. This
-        # directly targets the eval-freeze shortcut seen after aim gating.
+        
         if range_correction_needed:
             if moving and correcting_range_direction:
                 reward += self.STAGE3_NEEDED_MOVEMENT_REWARD * (0.65 + 0.35 * aim_quality)
@@ -987,9 +927,7 @@ class RewardManager:
         else:
             reward -= 0.006
 
-        # A* is now secondary. It helps the policy reach/correct the desired
-        # combat position, but it is down-weighted near ideal range so it does not
-        # keep pushing the agent when the correct behavior is to stabilize.
+        
         range_need = min(1.0, distance_error_now / max(1.0, self.STAGE3_RANGE_TOLERANCE))
         aim_gate = self.STAGE3_NAV_AIM_GATE_FLOOR + (1.0 - self.STAGE3_NAV_AIM_GATE_FLOOR) * aim_quality
         range_gate = 0.30 + 0.70 * range_need
@@ -1038,9 +976,6 @@ class RewardManager:
         else:
             self.movement_jitter_streak = 0
             if range_correction_needed:
-                # Small immediate cost for not moving when distance is wrong;
-                # the stronger anti-freeze penalty above starts after the grace
-                # period to avoid punishing brief stabilization pauses.
                 reward -= 0.012
 
         self.prev_velocity = Vec2(learner.velocity.x, learner.velocity.y)
@@ -1105,12 +1040,6 @@ class RewardManager:
         return reward * scale
 
     def _stage3_is_correcting_range(self, current_distance: float) -> bool:
-        """Return True when the distance change is already moving toward epsilon.
-
-        This is used only to soften the out-of-range penalty. It does not update
-        Stage 3 metrics, because metric accounting is handled in
-        _stage3_distance_transition_reward.
-        """
         d0 = self.prev_distance
         d1 = current_distance
         epsilon = self.IDEAL_COMBAT_RANGE
@@ -1123,14 +1052,6 @@ class RewardManager:
         return False
 
     def _stage3_distance_transition_reward(self, current_distance: float, current_line_of_sight: bool) -> float:
-        """Closed-loop distance-control shaping for Stage 3.
-
-        d0 is the previous enemy distance, d1 is the current distance, and epsilon
-        is the ideal combat distance. The reward teaches three tactical actions:
-        chase when too far, withdraw when too close, and stabilize when already
-        near epsilon. Stable ideal distance is deliberately rewarded more than
-        correction so the agent does not farm in/out oscillations.
-        """
         if not current_line_of_sight:
             return 0.0
 
@@ -1139,7 +1060,7 @@ class RewardManager:
         epsilon = self.IDEAL_COMBAT_RANGE
         ideal_band = PLAYER_RADIUS_PX
         danger_distance = PLAYER_DIAMETER_PX * 2.0
-        delta = d1 - d0  # positive means distance increased; negative means distance decreased
+        delta = d1 - d0  
         abs_delta = abs(delta)
         self.stage3_range_drift_sum += abs_delta
 
@@ -1152,7 +1073,7 @@ class RewardManager:
         was_too_close = d0 < epsilon - ideal_band
         was_too_far = d0 > epsilon + ideal_band
 
-        # The ideal state: stay close to epsilon without unnecessary oscillation.
+        
         if in_ideal_band:
             self.stage3_range_control_opportunities += 1
             if abs_delta <= self.STAGE3_STABLE_RANGE_DELTA:
@@ -1164,9 +1085,7 @@ class RewardManager:
                 reward += self.STAGE3_RANGE_STABILITY_DRIFT_PENALTY
             return reward
 
-        # If the previous state was already too close, the correct response is
-        # to increase distance. If it was too far, the correct response is to
-        # decrease distance. A small deadzone avoids rewarding numerical noise.
+        
         if was_too_close:
             self.stage3_range_control_opportunities += 1
             if delta > self.STAGE3_RANGE_CONTROL_DEADZONE:
@@ -1191,15 +1110,13 @@ class RewardManager:
         return reward
 
     def _stage3_range_quality(self, current_distance: float) -> float:
-        # Smooth 0..1 score around the ideal distance. The useful-range band is
-        # not binary; near-misses still produce learning signal.
+        
         distance_error = abs(current_distance - self.IDEAL_COMBAT_RANGE)
         soft_width = max(1.0, self.STAGE3_RANGE_TOLERANCE * 2.5)
         return max(0.0, min(1.0, 1.0 - distance_error / soft_width))
 
     def _stage3_aim_quality(self, current_angle_error: float) -> float:
-        # Exponential aim quality keeps the reward differentiable-like for PPO:
-        # perfect aim is near 1, poor aim smoothly approaches 0.
+        
         return max(0.0, min(1.0, math.exp(-self.STAGE3_AIM_QUALITY_DECAY * max(0.0, current_angle_error))))
 
     def _stage4_reward(
@@ -1260,13 +1177,7 @@ class RewardManager:
         return reward
 
     def _stage5_reward(self, events: list[Event], learner: Agent, current_distance: float, current_line_of_sight: bool, current_angle_error: float, moving: bool, nav_reference: NavigationReference | None) -> float:
-        """Combat-centered Stage 5 shaping.
-
-        Stage 5 should not reward movement by itself. It should reward hits,
-        damage, and shooting decisions that happen while the learner is actually
-        moving. Aim/range shaping is kept small and gated by visible combat so
-        the policy cannot farm passive positioning rewards.
-        """
+        
         reward = 0.0
         speed_ratio = 0.0
         if learner.move_speed > 1e-6:
@@ -1300,7 +1211,6 @@ class RewardManager:
             elif event.kind == "shot_hit":
                 shot_was_moving = bool(event.data.get("moving_shot", False))
                 if shot_was_moving:
-                    # Capped speed scaling prevents a sprint-at-all-costs policy.
                     speed_bonus = min(1.0, max(0.0, speed_ratio) / 0.60)
                     reward += self.STAGE5_MOVING_HIT_BONUS * max(0.55, speed_bonus)
                 else:
@@ -1312,14 +1222,11 @@ class RewardManager:
         reward = 0.0
         phase_index = max(1, min(4, int(getattr(self, "stage6_curriculum_phase_index", 4) or 4)))
 
-        # Small support for controlled pressure: moving, visible, and still aimed.
-        # This is not a movement reward by itself; it only applies in a live duel
-        # state that can produce usable shots.
+        
         if moving and current_line_of_sight and current_angle_error < 0.22:
             reward += self.STAGE6_ALIGNED_MOVING_PRESSURE_REWARD
 
-        # Do not let the Stage 5 policy solve Stage 6 by eating damage and racing
-        # for the kill.  The penalty becomes stricter in the final phase.
+        
         soft_damage_limit = 84.0 if phase_index <= 3 else 63.0
         if self.damage_taken > soft_damage_limit:
             reward += self.STAGE6_LOW_DAMAGE_PENALTY * min(8.0, (self.damage_taken - soft_damage_limit) / 21.0)
@@ -1343,17 +1250,14 @@ class RewardManager:
         reward += self._movement_position_reward(current_distance, current_line_of_sight)
         if obstacles and self.stage_id == "stage7":
             phase_index = max(1, min(5, int(getattr(self, "stage7_curriculum_phase_index", 5) or 5)))
-            # Obstacle stages need stronger path guidance than open combat,
-            # especially while LOS is lost.  This keeps Stage 7 closer to the
-            # Stage 3 movement objective: make path progress, do not just move.
+            
             if not current_line_of_sight:
                 nav_scale = 0.55 if phase_index <= 2 else 0.45
             else:
                 nav_scale = 0.34 if phase_index <= 2 else 0.30
         else:
             nav_scale = 0.45 if obstacles else 0.30
-        # Later movement/combat stages reuse the same reference.  It remains a
-        # reward guide only; PPO still chooses move/strafe/rotate/shoot/reload.
+        
         reward += self._navigation_reference_reward(learner, nav_reference, current_line_of_sight, current_angle_error, scale=nav_scale)
         if not current_line_of_sight:
             self.passive_steps += 1
@@ -1399,13 +1303,7 @@ class RewardManager:
         moving: bool,
         nav_reference: NavigationReference | None = None,
     ) -> float:
-        """Extra Stage 7 shaping for active obstacle navigation and visible aiming.
-
-        The base combat reward already covers kills, damage, LOS recovery, and
-        generic navigation.  This refinement targets the failure seen in logs:
-        the agent moves without making path progress, then sees the enemy but
-        fails to aim/fire aggressively enough.
-        """
+        
         if self.stage_id != "stage7":
             return 0.0
 
@@ -1425,8 +1323,7 @@ class RewardManager:
             if event.kind == "shot_blocked":
                 reward += self.STAGE7_BLOCKED_SHOT_EXTRA_PENALTY
             elif event.kind == "shot_fired" and not hit_this_step and not self._shot_event_ray_hits_enemy(event, enemy, world):
-                # This should be rare because the environment masks/blocks unclean
-                # Stage 7 shots. Keep a strong backup penalty for non-mask callers.
+                
                 reward += self.STAGE7_UNCLEAN_SHOT_ATTEMPT_PENALTY
             elif event.kind == "shot_hit":
                 reward += self.STAGE7_CLEAN_HIT_BONUS
@@ -1477,8 +1374,7 @@ class RewardManager:
             if moving and progress < 0.05 and self.los_lost_streak > 40:
                 reward += self.STAGE7_MOVING_WITHOUT_NAV_PROGRESS_PENALTY
         elif moving and self.los_lost_streak > 60:
-            # Movement without a usable path reference should not be treated as
-            # good obstacle search forever.
+            
             reward += self.STAGE7_MOVING_WITHOUT_NAV_PROGRESS_PENALTY * 0.5
 
         return reward
@@ -1497,12 +1393,7 @@ class RewardManager:
         projectile_danger: bool,
         nav_reference: NavigationReference | None = None,
     ) -> float:
-        """Stage 8 shaping: reload endurance plus retained combat behavior.
-
-        Stage 8 no longer changes magazine size or teaches an exact reload script.
-        The same combat/reload components remain active, while sequential enemy
-        waves create natural pressure to reload during longer fights.
-        """
+        
         reward = 0.0
         ammo_ratio = learner.ammo_ratio
         target = self.STAGE8_TARGET_RELOAD_RATIO
@@ -1520,7 +1411,6 @@ class RewardManager:
         abs_heading_delta = abs(heading_delta)
 
         if self.stage8_reload_started > 0 and self.stage8_shots_after_reload == 0 and not getattr(learner, "reloading", False):
-            # Reloading is only useful if the bot returns to combat afterwards.
             reward += self.STAGE8_NO_POST_RELOAD_COMBAT_PENALTY
 
         reload_charges = getattr(learner, "reload_charges", None)
@@ -1535,8 +1425,6 @@ class RewardManager:
         if ammo_ratio <= 0.0 and not getattr(learner, "reloading", False):
             self.stage8_empty_ammo_steps += 1
             if has_reload_reserve:
-                # Being empty with reserve reloads is the bad state. The reload
-                # action itself is allowed to be a late rescue escape hatch.
                 reward += self.STAGE8_EMPTY_STATE_PENALTY * (1.0 if phase_index >= 5 else 0.75)
                 if self.kills >= 1 or self.damage_dealt > 0.0:
                     reward += self.STAGE8_LOW_AMMO_NO_RELOAD_PENALTY * 0.25
@@ -1550,8 +1438,6 @@ class RewardManager:
                 reward += self.STAGE8_CRITICAL_AMMO_NO_RELOAD_PENALTY * (1.50 if phase_index >= 5 else 1.0)
 
         if is_phase_8a and self.shots_fired <= 0 and not shot_fired_this_step and not getattr(learner, "reloading", False):
-            # Deprecated 8A tutor branch. Disabled by is_phase_8a=False after the
-            # Stage 8 simplification, but kept harmless for old log compatibility.
             if self.survival_steps > self.STAGE8_8A_NO_FIRST_SHOT_GRACE_STEPS:
                 self.stage8_no_first_shot_pressure_steps += 1
                 overdue_blocks = min(5.0, (self.survival_steps - self.STAGE8_8A_NO_FIRST_SHOT_GRACE_STEPS) / 40.0)
@@ -1560,7 +1446,6 @@ class RewardManager:
                 reward += self.STAGE8_8A_ALIGNED_NO_FIRST_SHOT_PENALTY
 
         if is_phase_8a and not getattr(learner, "reloading", False):
-            # Deprecated 8A target-ammo tutor branch. Disabled by is_phase_8a=False.
             if learner.ammo == target_ammo_now and self.shots_fired >= 1 and self.stage8_reload_started <= 0:
                 self.stage8_target_ammo_steps += 1
                 if not self.stage8_target_ammo_reached:
@@ -1586,10 +1471,6 @@ class RewardManager:
                 max_ammo_before = int(event.data.get("max_ammo", learner.max_ammo))
                 target_ammo = max(1, int(round(float(max_ammo_before) / 3.0)))
 
-                # Timely reload quality for Stage 8 endurance.  The intended
-                # final skill is a pre-empty reload, not shooting down to 0/20.
-                # 1-8/20 is good, 9-12/20 is acceptable, 0/20 is only a late
-                # rescue reload, and 13-20/20 is early/wasteful.
                 spent_from_magazine = max(0, max_ammo_before - ammo_before)
                 useful_magazine = (
                     self.stage8_magazine_hits_since_reload > 0
@@ -1598,10 +1479,6 @@ class RewardManager:
                 low_waste_magazine = self.stage8_magazine_no_los_shots_since_reload <= max(1, self.stage8_magazine_shots_since_reload // 2)
                 reload_context_ok = True
                 if phase_index >= 5:
-                    # Final phases require a useful magazine before a reload gets
-                    # quality credit.  This prevents two bad policies:
-                    # (1) reloading after only a few bullets, and
-                    # (2) dumping bullets into walls just to reach a low ammo count.
                     reload_context_ok = (
                         useful_magazine
                         and low_waste_magazine
@@ -1659,7 +1536,6 @@ class RewardManager:
                     else:
                         reward += self.STAGE8_EARLY_RELOAD_PENALTY * (0.55 if wave_preparation else 1.0)
 
-                # A new magazine starts after every reload attempt that begins.
                 self.stage8_magazine_shots_since_reload = 0
                 self.stage8_magazine_hits_since_reload = 0
                 self.stage8_magazine_damage_since_reload = 0.0
@@ -1669,10 +1545,7 @@ class RewardManager:
                     self.stage8_reload_while_killable += 1
                     reward += self.STAGE8_RELOAD_WHILE_KILLABLE_PENALTY
             elif event.kind == "shot_fired":
-                # Stage 8 final integration: bad tactical shots are no longer
-                # masked.  The policy may fire without LOS/clear shot or while
-                # badly aimed, but these choices are explicitly penalized and
-                # logged so the skill is learned rather than hard-blocked.
+                
                 ammo_before_shot = int(event.data.get("ammo_before", learner.ammo + 1))
                 self.stage8_magazine_shots_since_reload += 1
                 if phase_index >= 5 and 0 < ammo_before_shot <= 8 and not killable_now:
@@ -1689,11 +1562,7 @@ class RewardManager:
                     self.stage8_consecutive_no_los_shots += 1
                     reward += self.STAGE8_NO_LOS_SHOT_ATTEMPT_PENALTY
                     if phase_index >= 3:
-                        # Obstacle phases must learn trigger discipline through reward,
-                        # not through action masking. LOS loss is allowed; firing into
-                        # cover is the bad decision. Repeated blind shots are penalized
-                        # progressively so the bot stops wall-spraying, while a single
-                        # accidental shot is not made catastrophic.
+                        
                         self.stage8_obstacle_no_los_shot_attempts += 1
                         reward += self.STAGE8_OBSTACLE_NO_LOS_SHOT_EXTRA_PENALTY
                         if self.stage8_consecutive_no_los_shots >= 2:
@@ -1718,11 +1587,7 @@ class RewardManager:
                     if is_phase_8a:
                         reward += self.STAGE8_8A_POST_RELOAD_SHOT_EXTRA_REWARD
             elif event.kind == "invalid_action" and event.data.get("ability") == "shoot_without_clear_shot":
-                # Some no-LOS shoot attempts are represented by the environment as
-                # invalid actions rather than shot_fired events.  The base event
-                # reward already counts the attempt and applies the base penalty;
-                # this block adds the Stage 8 obstacle-specific pressure so blind
-                # trigger spam is punished consistently in both representations.
+                
                 if phase_index >= 3:
                     self.stage8_obstacle_no_los_shot_attempts += 1
                     self.stage8_consecutive_no_los_shots += 1
@@ -1772,7 +1637,6 @@ class RewardManager:
             if weapon_ready and current_clear_shot and current_angle_error <= self.STAGE8_ALIGNMENT_THRESHOLD and not shot_fired_this_step and not reload_started_this_step:
                 reward += self.STAGE8_CLEAR_ALIGNED_NO_SHOT_PENALTY
 
-        # Smoothness pressure. Do not punish rapid steering while the bot is in projectile danger.
         abs_heading_delta = abs(heading_delta)
         if abs_heading_delta > 0.075:
             self.stage8_large_turn_count += 1
@@ -1825,14 +1689,11 @@ class RewardManager:
             and self.los_lost_streak > self.STAGE8_BLIND_ROTATION_GRACE_STEPS
         )
         if obstacle_recovery_state and not moving and self.los_lost_streak > self.STAGE8_NO_LOS_STATIONARY_GRACE_STEPS:
-            # This is deliberately small and specific: it targets standing around an
-            # obstacle without punishing normal LOS break/recovery.
+            
             reward += self.STAGE8_NO_LOS_STATIONARY_PENALTY
             self.stage8_no_los_stationary_penalty_steps += 1
         if obstacle_recovery_state and moving:
-            # Prefer Stage-7-style repositioning over in-place spinning. This is
-            # deliberately small, because LOS loss itself is not a mistake in an
-            # obstacle phase; failing to recover it is the mistake.
+            
             reward += self.STAGE8_OBSTACLE_RECOVERY_MOVE_REWARD
             if nav_reference is not None and getattr(nav_reference, "valid", False):
                 progress_delta = float(getattr(nav_reference, "progress_delta", 0.0) or 0.0)
@@ -1850,9 +1711,7 @@ class RewardManager:
             self.stage8_blind_rotation_steps = 0
 
         if phase_index >= 3 and enemy.is_alive and learner.is_alive and current_line_of_sight:
-            # Soft range discipline inherited from Stage 3: the agent should not
-            # rush into the stock bot. This is not an exact-distance script; it only
-            # discourages unsafe close-range collapse and rewards withdrawal from it.
+            
             if current_distance < self.STAGE8_MIN_COMBAT_DISTANCE:
                 self.stage8_too_close_steps += 1
                 close_ratio = (self.STAGE8_MIN_COMBAT_DISTANCE - current_distance) / max(1.0, self.STAGE8_MIN_COMBAT_DISTANCE)
@@ -1868,8 +1727,7 @@ class RewardManager:
                     danger_ratio = (self.STAGE8_DANGER_CLOSE_DISTANCE - current_distance) / max(1.0, self.STAGE8_DANGER_CLOSE_DISTANCE)
                     reward += self.STAGE8_DANGER_CLOSE_PENALTY * (0.75 + danger_ratio)
 
-        # Context-aware anti-passivity. This does not punish temporary
-        # line-of-sight loss, so Stage 7 cover/navigation behavior is preserved.
+        
         if hit_this_step:
             self.stage8_steps_since_damage_dealt = 0
         elif enemy.is_alive and learner.is_alive and learner.ammo > 0 and not getattr(learner, "reloading", False):
@@ -1929,11 +1787,6 @@ class RewardManager:
         return self.stage_success_metric() >= 1.0
 
     def stage8_8a_sequence_success(self) -> bool:
-        """Deprecated after the Stage 8 simplification.
-
-        Stage 8 now uses sequential enemy waves rather than a special 8A
-        first-shot -> one-third-ammo -> reload script.
-        """
         return False
 
     def stage_success_metric(self) -> float:
@@ -2003,8 +1856,6 @@ class RewardManager:
 
         if self.stage_id == "stage2":
             enough_hits = self.shots_hit >= self.STAGE2_REQUIRED_HITS or self.damage_dealt >= 80.0 or self.kills > 0
-            # No relaxed dirty-kill exception here: Stage 2 is specifically about
-            # clean shooting timing, so a kill with poor hit rate must not pass.
             hit_rate_ok = hit_rate >= self.STAGE2_REQUIRED_HIT_RATE
             blocked_shot_rate = (self.shots_blocked / self.shots_fired) if self.shots_fired > 0 else 0.0
             blocked_rate_ok = blocked_shot_rate <= self.STAGE2_MAX_BLOCKED_SHOT_RATE
@@ -2047,9 +1898,7 @@ class RewardManager:
             nav_quality = min(
                 nav_progress_ratio / self.STAGE3_MIN_NAV_PROGRESS_RATIO,
                 max(0.0, 1.0 - avg_path_deviation / max(1.0, self.STAGE3_MAX_AVG_PATH_DEVIATION * 1.4)),
-                # A low average desired-distance can compensate for few explicit
-                # progress steps when the target moves and the policy is already
-                # maintaining the moving combat position.
+                
                 max(nav_direction_ratio / 0.35, max(0.0, 1.0 - avg_desired_distance / 150.0)),
             )
             smoothness_score = 1.0 if jitter_rate <= self.STAGE3_MAX_JITTER_RATE else max(
@@ -2259,10 +2108,7 @@ class RewardManager:
                 max_allowed_damage = 84.0
                 max_projectile_hits = 4
                 max_passive_steps = 105
-                # Final 6D should not fail a clean fast kill only because the
-                # agent moved slightly below the old 230 px edge threshold.
-                # Core gates still remain strict: kill, no death, damage ratio,
-                # damage taken, projectile hits, hit rate, and reload sanity.
+                
                 required_movement = 210.0
                 min_reload_sanity = 0.65
 
@@ -2451,10 +2297,7 @@ class RewardManager:
             aim_mean = self.aim_error_mean()
             no_los_shot_rate = self.stage8_no_los_shot_attempts / max(1, self.shots_fired)
 
-            # Phase difficulty is about longer combat, not exact reload micro-rules.
-            # 8A now checks the basics: clear most waves, survive, reload at least
-            # once, and avoid extreme shooting/reload spam.  Smooth-control is not
-            # an 8A blocker; it becomes relevant once obstacles and pressure appear.
+           
             required_waves = max(1, expected_waves - 1) if phase_index <= 1 else max(1, expected_waves - 1)
             required_wave_ratio = required_waves / expected_waves
             min_hit_rate = {1: 0.40, 2: 0.45, 3: 0.50, 4: 0.55, 5: 0.60, 6: 0.55}.get(phase_index, 0.55)
@@ -2590,8 +2433,6 @@ class RewardManager:
                     max(0.0, 1.0 - stage8_movement_flip_rate / max(self.STAGE8_MAX_MOVEMENT_FLIP_RATE, 1e-6)),
                 )
             if phase_index >= 3:
-                # From 8C onward, smooth control is diagnostic only.
-                # It should not block otherwise good obstacle combat.
                 smooth_score_for_metric = max(0.70, smooth_score)
                 smooth_ok_for_gate = True
             else:
@@ -2879,5 +2720,4 @@ class RewardManager:
             difference += 2 * math.pi
         return abs(difference)
 
-# Explicit public export used by tools/sanity_check.py and rl/env.py.
 __all__ = ["RewardManager"]

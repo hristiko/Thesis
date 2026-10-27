@@ -152,10 +152,6 @@ def check_projectile_swept_collision_and_raycast() -> dict:
     hit = detection.trace_ray(world, learner.position, Vec2(1, 0), max_length=360, step_size=5, target_agent_id="enemy", observer_agent_id="learner")
     _assert(hit.hit_type == detection.HIT_PROJECTILE, "raycast did not report projectile as first visible object")
 
-    # Stage 8 was changed from map-pickup management to inventory-based
-    # tactical reload management.  Therefore this sanity check must not expect
-    # visible pickups in the Stage 8 layout.  Pickup raycasting remains part of
-    # the generic engine, but it is no longer a Stage 8 requirement.
     stage8_world = World(build_layout("stage8"))
     _assert(len(stage8_world.pickups) == 0, "Stage 8 should not spawn map pickups")
     return {"swept_projectile_collision": True, "projectile_raycast": True, "stage8_no_map_pickups": True}
@@ -194,9 +190,7 @@ def check_environment_reset_interface() -> dict:
     try:
         from rl.env import ShooterEnv
     except ModuleNotFoundError as exc:
-        # The source-level checks above do not require Gymnasium.  On a machine
-        # with requirements.txt installed this branch is not used, and the real
-        # Gymnasium wrapper is tested as well.
+
         if exc.name != "gymnasium":
             raise
         world, learner, _enemy = _open_world()
@@ -226,13 +220,7 @@ def check_environment_reset_interface() -> dict:
 
 
 def run_stage0_sanity_check(verbose: bool = True) -> dict:
-    """Run Stage 0 scripted validation checks.
-
-    This stage is intentionally not PPO training. It verifies mechanics that the
-    later curriculum assumes are trustworthy: movement, rotation, shooting,
-    reloads, collision, damage/death events, resource/reload mechanics, reward
-    penalties, normalized observations, and reset behavior.
-    """
+    
     checks: list[tuple[str, Callable[[], dict]]] = [
         ("movement, rotation, reset", check_movement_rotation_and_reset),
         ("wall/obstacle collision and line of sight", check_wall_and_obstacle_collision),
@@ -256,7 +244,6 @@ def run_stage0_sanity_check(verbose: bool = True) -> dict:
     return report
 
 
-# Backward-compatible entry point for older scripts.
 def check_detection() -> None:
     run_stage0_sanity_check(verbose=True)
 

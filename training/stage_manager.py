@@ -67,8 +67,7 @@ def ensure_stage_stats_file() -> None:
     changed = False
 
     if data.get("run_family") != RUN_FAMILY:
-        # Different run families are not observation/action compatible. Keep the
-        # old file on disk but initialize this run family's stats cleanly.
+        
         data = default
         changed = True
     else:
@@ -132,14 +131,7 @@ def _stage_has_official_best(data: dict[str, Any], stage_id: str) -> bool:
 
 
 def refresh_stage_unlocks(save: bool = False) -> dict[str, Any]:
-    """Refresh display state without unlocking from arbitrary checkpoints.
-
-    The old curriculum unlocked the next stage when any previous checkpoint
-    existed. This was convenient during demos but unsafe for thesis evaluation.
-    Now a trainable stage unlocks only when the required previous stage has an
-    official validated best model. Interrupted/latest checkpoints remain useful
-    for manual resume, but they do not advance the curriculum.
-    """
+    
     data = load_stage_stats()
     if data.get("run_family") != RUN_FAMILY:
         data = _default_stats()
@@ -165,7 +157,7 @@ def refresh_stage_unlocks(save: bool = False) -> dict[str, Any]:
         else:
             entry["unlocked"] = _stage_has_official_best(data, stage.required_previous_stage)
 
-        # If a best model disappeared, do not keep claiming official completion.
+        
         if not stage.best_model_path.exists() and stage.trainable:
             entry["official_best_model"] = False
             entry["passed_validation"] = False

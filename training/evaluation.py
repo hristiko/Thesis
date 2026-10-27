@@ -234,7 +234,7 @@ def _policy_from_name(name: str, env: ShooterEnv, model: Any | None = None) -> C
 
         return policy
     if name == "random":
-        # Random baselines should test random valid behavior, not invalid-action spam.
+        
         return lambda _obs: env.sample_valid_action()
     if name == "noop":
         return lambda _obs: noop_action()

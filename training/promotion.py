@@ -107,9 +107,7 @@ def evaluate_stage8_phase(phase: dict[str, Any], summary: dict[str, Any], *, def
     avg_empty_ammo_steps = _float(mean_metrics.get("stage8_empty_ammo_steps", 9999.0), 9999.0)
     avg_no_los_shot_attempts = _float(mean_metrics.get("stage8_no_los_shot_attempts", 0.0), 0.0)
     avg_shots_fired = _float(mean_metrics.get("shots_fired", 0.0), 0.0)
-    # Use aggregate no-LOS shots divided by aggregate shots, not the mean of
-    # per-episode rates. A failed episode with one no-LOS shot and almost no
-    # shooting should not dominate a bridge-phase promotion decision.
+
     avg_no_los_shot_rate = avg_no_los_shot_attempts / max(1.0, avg_shots_fired)
     avg_blind_rotation_steps = _float(mean_metrics.get("stage8_blind_rotation_penalty_steps", 0.0), 0.0)
     avg_too_close_steps = _float(mean_metrics.get("stage8_too_close_steps", 0.0), 0.0)

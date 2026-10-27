@@ -44,8 +44,7 @@ def _ppo_hyperparameters(stage_id: str | None = None) -> dict[str, Any]:
     normalized_stage_id = normalize_stage_id(stage_id or "stage1")
 
     if normalized_stage_id == "stage8":
-        # Cooling phase: reduce exploration noise so the useful Stage 8 combat
-        # actions become deterministic rather than only stochastic samples.
+        
         ent_coef = 0.001
     elif normalized_stage_id in {"stage5", "stage6", "stage7"}:
         ent_coef = 0.01
@@ -54,10 +53,7 @@ def _ppo_hyperparameters(stage_id: str | None = None) -> dict[str, Any]:
     else:
         ent_coef = 0.05
     params: dict[str, Any] = {
-        # MaskablePPO keeps PPO but removes locked stage actions from sampling.
-        # Stage 4 uses a lower entropy bonus and a KL guard because the policy
-        # already discovers real dodging sometimes; the main risk now is noisy
-        # destructive updates when projectile pressure changes.
+        
         "learning_rate": 2.5e-4,
         "n_steps": 1024,
         "batch_size": 128,
@@ -82,11 +78,7 @@ def _make_new_model(env: Any, stage_id: str | None = None) -> Any:
     return make_model(env, params)
 
 def _apply_runtime_hyperparameters(model: Any, stage_id: str) -> Any:
-    """Apply checkpoint-compatible PPO hyperparameter changes.
-
-    This is needed when resuming a saved model, because the old PPO object may
-    still contain the previous ent_coef value from the checkpoint.
-    """
+    
     params = _ppo_hyperparameters(stage_id)
 
     model.ent_coef = float(params["ent_coef"])
@@ -123,12 +115,7 @@ def _choose_previous_stage_source(stage_id: str, prev_source: str = "best") -> P
 
 
 def _transfer_compatible_policy_weights(target_model: Any, source_checkpoint: Path) -> None:
-    """Copy matching actor/critic tensors from a previous stage.
-
-    Stage 1 now uses a compact observation while later stages keep the richer
-    vector, so direct loading may fail across that boundary. Matching tensors are
-    still copied to preserve reusable hidden-layer knowledge where shapes allow.
-    """
+    
     source_model = load_any_sb3_model(source_checkpoint, device="cpu")
     source_state = source_model.policy.state_dict()
     target_state = target_model.policy.state_dict()
@@ -360,9 +347,7 @@ def run_training_for_stage(
         mode = "visual" if visible else "headless"
         print(f"Training {stage.name} with MaskablePPO in {mode} mode until validation passes...")
         print("Use Ctrl+C to save an interrupted checkpoint. In visual mode use P to pause, F3 for rays, and F5 to save.")
-        # Treat max_timesteps as the additional budget for this stage, not as
-        # an absolute global PPO counter.  Previous-stage checkpoints already
-        # carry their own num_timesteps value.
+        
         start_timesteps = int(model.num_timesteps)
         target_timesteps = start_timesteps + int(max_timesteps)
         while not callback.success_reached and model.num_timesteps < target_timesteps:

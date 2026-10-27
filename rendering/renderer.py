@@ -76,10 +76,7 @@ class Renderer:
         self.show_raycast_debug = show_raycast_debug
         self.show_navigation_debug = show_navigation_debug
 
-        # Follow camera is used only for human vs Stage 8D testing.
-        # It crops a fixed world-space square around the human player and scales
-        # it to the visible square viewport. It is deliberately separate from
-        # the normal renderer so other play/train/test modes are unchanged.
+        
         self.follow_camera_enabled = False
         self.camera_target_agent_id: str | None = None
         self.camera_world_span = 380.0
@@ -127,9 +124,7 @@ class Renderer:
         return world_x, world_y
 
     def world_to_screen(self, x: float, y: float) -> tuple[int, int]:
-        # Normal renderer path: world coordinates are screen coordinates.
-        # Follow-camera mode renders to a temporary world-sized surface first,
-        # so this identity transform is still correct there.
+        
         return int(x), int(y)
 
     def process_runtime_events(self) -> None:
@@ -227,8 +222,7 @@ class Renderer:
 
         span = int(round(self.camera_world_span))
 
-        # No clamping. The human player remains exactly in the center of the
-        # viewport even near arena borders. Outside-map area is drawn as bg.
+        
         self.camera_crop_x = center_x - span / 2.0
         self.camera_crop_y = center_y - span / 2.0
 
@@ -239,8 +233,7 @@ class Renderer:
             (-int(round(self.camera_crop_x)), -int(round(self.camera_crop_y))),
         )
 
-        # Use scale rather than smoothscale to keep the enlarged CS2D-like view
-        # crisp and avoid extra blur in the human evaluation mode.
+        
         scaled_camera = pygame.transform.scale(camera_surface, (view_rect.width, view_rect.height))
 
         display_surface.fill(COLORS["bg"])

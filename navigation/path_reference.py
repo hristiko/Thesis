@@ -11,7 +11,7 @@ from navigation.combat_positioning import clamp_point_for_player, desired_combat
 
 @dataclass(frozen=True)
 class NavigationReference:
-    """Engine-computed A* movement reference used only for reward/diagnostics."""
+    
 
     valid: bool = False
     desired_position: Vec2 = field(default_factory=Vec2)
@@ -28,12 +28,7 @@ class NavigationReference:
 
 
 class NavigationReferenceTracker:
-    """Maintains a dynamic A* reference for moving stages.
-
-    The tracker never returns actions. It only exposes the desired combat point,
-    current A* path, next waypoint, and progress diagnostics so PPO can be
-    rewarded for movement quality while still choosing its own actions.
-    """
+    
 
     def __init__(
         self,

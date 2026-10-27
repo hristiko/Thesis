@@ -33,8 +33,6 @@ class StageConfig:
     trainable: bool
     required_previous_stage: str | None
 
-    # Learner abilities are implemented from the start, but availability is
-    # controlled here by masking the consistent MultiDiscrete action interface.
     learner_can_move: bool
     learner_can_strafe: bool
     learner_can_rotate: bool
@@ -575,9 +573,6 @@ STAGES: dict[str, StageConfig] = {
 STAGE_ORDER = [f"stage{i}" for i in range(0, 9)]
 TRAINABLE_STAGE_ORDER = [stage_id for stage_id in STAGE_ORDER if STAGES[stage_id].trainable]
 
-# Backward-compatible aliases for old menus/checkpoints/scripts.  Old PPO models
-# are not action/observation compatible, but this makes old CLI stage names map
-# to the closest new curriculum stage instead of crashing.
 STAGE_ALIASES = {
     "stageA": "stage1",
     "stageB": "stage2",

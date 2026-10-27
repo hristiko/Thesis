@@ -32,13 +32,11 @@ from training.skill_table import build_skill_table
 
 
 STAGE8_RELOAD_CHARGES = 3
-# Stage 8 now keeps the same Glock model as the rest of the project.
-# Reload pressure is produced by sequential enemy waves, not by shrinking the magazine.
+
 STAGE8_MAX_AMMO = GLOCK_MAX_AMMO
 STAGE8_STARTING_AMMO = GLOCK_MAX_AMMO
 STAGE8_DEFAULT_ENEMY_WAVES = 5
-# In final Stage 8E, terminate episodes where the learner sits at 0 ammo
-# despite having reload reserves.  This prevents thousand-step empty-ammo tails.
+
 STAGE8_EMPTY_AMMO_TIMEOUT_STEPS = 30
 STAGE8_LOW_AMMO_DECISION_THRESHOLD = 8
 
@@ -66,8 +64,7 @@ class ShooterEnv(gym.Env):
         self.show_raycast_debug = show_raycast_debug
         self.validation_mode = bool(validation_mode)
 
-        # Stage 4 curriculum: training can use a temporary projectile-speed
-        # scale, but validation/evaluation always uses the official speed.
+        
         self.stage4_projectile_speed_scale = 1.0
         self.stage4_enemy_fire_rate_scale = 1.0
         self.stage4_first_shot_delay_steps = 0
@@ -131,8 +128,7 @@ class ShooterEnv(gym.Env):
 
         self.frame_stack = int(frame_stack or self.stage.frame_stack)
 
-        # Simulation timestep.
-        # World uses 30 FPS logic, so dt = 1 / 30 seconds.
+        
         self.dt = 1.0 / 30.0
 
         base_dim = ObsBuilder.obs_dim_for_stage(self.observation_stage_id)
@@ -174,16 +170,14 @@ class ShooterEnv(gym.Env):
         self._frames: deque[np.ndarray] = deque(maxlen=self.frame_stack)
 
     def _stage8_empty_ammo_timeout_exceeded(self) -> bool:
-        """Return True when 8E is stuck at empty ammo with reloads available."""
+        
         if self.stage_id != "stage8" or self.learner is None:
             return False
         if int(getattr(self, "stage8_curriculum_phase_index", 1)) < 5:
             self.stage8_consecutive_empty_ammo_steps = 0
             return False
 
-        # In 8E/8F, sitting at 0 ammo is a terminal tactical failure whether
-        # reload reserves remain or were already wasted through early reloads.
-        # This removes long empty-ammo tails and gives PPO a cleaner signal.
+        
         stuck_empty = (
             self.learner.ammo <= 0
             and not getattr(self.learner, "reloading", False)
@@ -197,7 +191,7 @@ class ShooterEnv(gym.Env):
         return self.stage8_consecutive_empty_ammo_steps >= STAGE8_EMPTY_AMMO_TIMEOUT_STEPS
 
     def _stage8_low_ammo_decision_active_now(self) -> bool:
-        """Return True when 8E should prefer reloading before reaching empty ammo."""
+        
         if self.stage_id != "stage8" or self.learner is None:
             return False
         if int(getattr(self, "stage8_curriculum_phase_index", 1)) < 5:
@@ -213,7 +207,7 @@ class ShooterEnv(gym.Env):
         )
 
     def _update_stage8_low_ammo_decision_window(self) -> None:
-        """Track low-ammo 8E decision opportunities for logging/debugging."""
+       
         active = self._stage8_low_ammo_decision_active_now()
         self.stage8_low_ammo_decision_active = active
         if active:
@@ -227,9 +221,6 @@ class ShooterEnv(gym.Env):
         return int(self.stage.max_steps)
 
     def _uses_navigation_reference(self) -> bool:
-        # Stage 3 introduces the reward-guided navigation reference.
-        # Later combat movement stages reuse it, especially when obstacles are enabled.
-        # Stage 1 and Stage 2 defaults are intentionally left unchanged.
         return self.stage_id in {"stage3", "stage5", "stage6", "stage7", "stage8"}
 
     def _update_navigation_debug_points(self, nav_reference) -> None:
@@ -253,9 +244,7 @@ class ShooterEnv(gym.Env):
 
         path_points = [(point.x, point.y) for point in getattr(nav_reference, "path", ())]
 
-        # The reward target remains the desired combat point, but the visual A*
-        # guide continues to the enemy so the viewer understands what the path is
-        # relative to.
+        
         if self.enemy is not None and path_points:
             enemy_point = (self.enemy.position.x, self.enemy.position.y)
             if path_points[-1] != enemy_point:
@@ -284,12 +273,7 @@ class ShooterEnv(gym.Env):
         return wrap_angle(heading)
 
     def _learner_clear_shot_to_enemy(self, heading: float | None = None) -> bool:
-        """Return whether the current Glock muzzle ray would directly hit the enemy.
-
-        This is deliberately stricter than center-to-center line of sight. Stage 7
-        obstacles can leave the target center visible while the actual projectile
-        muzzle/path is still blocked by cover.
-        """
+        
         if self.world is None or self.learner is None or self.enemy is None:
             return True
         if not self.learner.is_alive or not self.enemy.is_alive:
@@ -325,13 +309,7 @@ class ShooterEnv(gym.Env):
         return abs(wrap_angle(target_angle - predicted))
 
     def _stage8_shoot_allowed_after_rotation(self, rot_idx: int = 0) -> bool:
-        """Physical Stage 8 shoot availability.
-
-        Stage 8 is the final integration stage.  Tactical choices such as
-        shooting without LOS, shooting while badly aimed, or shooting into cover
-        must remain available so PPO can learn to avoid them through reward
-        penalties.  The mask therefore only blocks physically unavailable shots.
-        """
+        
         if self.learner is None:
             return False
         learner = self.learner
@@ -343,13 +321,7 @@ class ShooterEnv(gym.Env):
         )
 
     def _stage8_reload_allowed_now(self) -> bool:
-        """Physical Stage 8 reload availability.
-
-        Reload timing is no longer tactically masked.  Reloading too early, too
-        late, or at empty ammo is handled by reward penalties.  The mask only
-        blocks physically impossible reloads: full magazine, already reloading,
-        dead agent, or no remaining reload charges.
-        """
+        
         if self.stage_id != "stage8" or self.learner is None:
             return True
         learner = self.learner
@@ -364,18 +336,13 @@ class ShooterEnv(gym.Env):
 
     def action_masks(self) -> np.ndarray:
         if self.stage_id in {"stage2", "stage5", "stage6", "stage7", "stage8"} and self.learner is not None:
-            # These stages should learn when to fire, not spam unavailable shots
-            # while the weapon is cooling down, reloading, or empty. In Stage 7,
-            # shooting is also blocked when obstacles hide the enemy, because the
-            # stage objective is to recover line of sight before firing.
+           
             shoot_allowed = self.learner.fire_ready >= 0.5
             reload_allowed = None
             if self.stage_id == "stage7":
                 shoot_allowed = shoot_allowed and self._learner_clear_shot_to_enemy()
             elif self.stage_id == "stage8":
-                # Final integration stage: only physically unavailable actions are
-                # masked.  Tactical mistakes remain selectable and are learned via
-                # reward penalties.
+              
                 shoot_allowed = self._stage8_shoot_allowed_after_rotation(0)
                 reload_allowed = self._stage8_reload_allowed_now()
 
@@ -736,11 +703,7 @@ class ShooterEnv(gym.Env):
         return np.concatenate(list(self._frames), axis=0).astype(np.float32)
 
     def set_stage4_projectile_speed_scale(self, scale: float) -> None:
-        """Set the Stage 4 training-only projectile-speed scale.
-
-        This is intentionally ignored in validation mode so evaluation keeps the
-        official projectile speed.
-        """
+       
         self.stage4_projectile_speed_scale = float(max(0.1, min(1.0, scale)))
         if self.enemy is not None:
             self.enemy.projectile_speed = self._episode_enemy_projectile_speed()
@@ -751,10 +714,7 @@ class ShooterEnv(gym.Env):
         first_shot_delay_steps: int = 0,
         max_active_enemy_projectiles: int = 99,
     ) -> None:
-        """Set Stage 4 training-only projectile pressure.
-
-        Validation ignores these values and keeps the official enemy pressure.
-        """
+       
         self.stage4_enemy_fire_rate_scale = float(max(0.20, min(1.0, fire_rate_scale)))
         self.stage4_first_shot_delay_steps = int(max(0, first_shot_delay_steps))
         self.stage4_max_active_enemy_projectiles = int(max(1, max_active_enemy_projectiles))
@@ -769,8 +729,7 @@ class ShooterEnv(gym.Env):
     def _effective_stage4_curriculum_level(self) -> int:
         if self.stage_id == "stage4" and not self.validation_mode:
             return self.stage4_curriculum_level
-        # Zero means official fixed validation pressure rather than a training
-        # curriculum level.
+    
         return 0
 
     def _effective_stage4_projectile_speed_scale(self) -> float:
@@ -975,13 +934,7 @@ class ShooterEnv(gym.Env):
         )
 
     def _apply_stage8_reload_pressure(self) -> None:
-        """Make Stage 8 test reload management without changing the weapon model.
-
-        Both combatants keep the normal Glock magazine and damage model.  The
-        learner starts full, but the episode contains several sequential enemies
-        while reload charges are limited, so reloading becomes useful naturally
-        during extended combat rather than because of an artificial 4/9 setup.
-        """
+        
         if self.stage_id != "stage8":
             return
 
@@ -1031,9 +984,6 @@ class ShooterEnv(gym.Env):
         self.world.stage4_max_active_enemy_projectiles = self._effective_stage4_max_active_enemy_projectiles()
 
     def _episode_enemy_move_speed(self) -> float:
-        # CS2D-style consistency: movement speed is a game constant, not a
-        # curriculum/profile parameter. Stages can still disable movement, but
-        # when a character moves, learner and stock bot use the same speed.
         return PLAYER_MOVE_SPEED_PX_PER_SEC
 
     def _mask_enemy_command(self, command: AgentCommand) -> AgentCommand:
@@ -1114,8 +1064,6 @@ class ShooterEnv(gym.Env):
                 command.world_move_y = 0.0
             if not self.stage8_enemy_can_shoot:
                 command.shoot = False
-                # Allow reload even when shooting is disabled: 8A should still let the
-                # enemy manage resources if needed, but it will not fire.
             else:
                 active_projectiles = sum(
                     1
@@ -1139,10 +1087,7 @@ class ShooterEnv(gym.Env):
         controlled_respawn = phase_index >= 5
         chosen_index = int(self.np_random.integers(0, spawn_count))
 
-        # 8E is reload-endurance validation, not a hard obstacle rediscovery task.
-        # Prefer a small fixed set of valid, usually visible respawn points so the
-        # deterministic policy has repeated opportunities to practice reload timing.
-        # 8F keeps the harder rotating spawn-pair behavior for integrated testing.
+        
         fixed_8e_points = []
         if phase_index == 5:
             fixed_8e_points = [
@@ -1166,8 +1111,7 @@ class ShooterEnv(gym.Env):
             start = int((self.episode_spawn_index + wave_offset) % len(fixed_8e_points))
             ordered_points = [fixed_8e_points[(start + offset) % len(fixed_8e_points)] for offset in range(len(fixed_8e_points))]
 
-            # First pass: direct LOS and safe distance. This makes 8E primarily test
-            # reload endurance instead of repeated obstacle re-acquisition.
+            
             for idx, point in enumerate(ordered_points):
                 dx = point.x - self.learner.position.x
                 dy = point.y - self.learner.position.y
@@ -1178,8 +1122,7 @@ class ShooterEnv(gym.Env):
                     chosen_heading = math.atan2(self.learner.position.y - chosen_y, self.learner.position.x - chosen_x)
                     break
 
-            # Fallback: still use a fixed valid point with safe distance, even if the
-            # current learner position temporarily blocks LOS through the obstacle.
+            
             if chosen_x is None:
                 for idx, point in enumerate(ordered_points):
                     dx = point.x - self.learner.position.x
@@ -1193,8 +1136,7 @@ class ShooterEnv(gym.Env):
 
         if chosen_x is None:
             if controlled_respawn:
-                # 8F and fallback: controlled rotating set of valid enemy respawns.
-                # This gives variation across waves without fully randomizing the map.
+                
                 base_index = self.episode_spawn_index if 0 <= self.episode_spawn_index < spawn_count else chosen_index
                 wave_offset = max(1, int(getattr(self, "stage8_current_wave", 1)) - 1)
                 candidate_indices = [int((base_index + wave_offset + offset) % spawn_count) for offset in range(spawn_count)]
@@ -1232,9 +1174,7 @@ class ShooterEnv(gym.Env):
             chosen_heading = math.atan2(self.learner.position.y - self.enemy.position.y, self.learner.position.x - self.enemy.position.x)
         self.enemy.heading = float(chosen_heading)
 
-        # Start each wave clean.  The learner keeps HP, ammo, reload timer, and
-        # reload charges, but old bullets are removed so the next wave is not
-        # decided by projectiles fired at a dead opponent.
+
         self.world.projectiles.clear()
         self.world._visibility_state.clear()
         if self.enemy_bot is not None and hasattr(self.enemy_bot, "reset_memory"):

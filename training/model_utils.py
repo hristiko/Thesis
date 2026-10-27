@@ -10,8 +10,8 @@ from rl.action_space import stage_action_mask
 
 try:
     from sb3_contrib import MaskablePPO
-except ImportError:  # pragma: no cover - handled at runtime by requirements.txt
-    MaskablePPO = None  # type: ignore[assignment]
+except ImportError:  
+    MaskablePPO = None  
 
 
 def preferred_algorithm_name() -> str:
@@ -59,7 +59,6 @@ def predict_with_action_masks(model: Any, obs: np.ndarray, env_or_stage: Any, de
 
     if masks is not None:
         try:
-            # MaskablePPO consumes this argument; PPO falls through to TypeError.
             return model.predict(obs, deterministic=deterministic, action_masks=masks)
         except TypeError:
             pass

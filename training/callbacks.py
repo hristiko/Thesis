@@ -288,17 +288,6 @@ EVAL_LOG_FIELDS = [
 ]
 
 
-# Stage 4 uses a training-only projectile-pressure curriculum. Validation keeps
-# the official speed and official enemy pressure because validation environments
-# ignore these temporary training settings.
-#
-# Advancement is intentionally conservative: a level is increased only after
-# stable hard success plus acceptable damage/death statistics.  The previous
-# version could advance from stage_success_metric alone, which let the agent
-# jump to harder projectile timing before it had a stable dodging policy.
-#
-# A bridge level is inserted between the previous Level 2 and Level 3 because
-# logs showed Level 2 was useful while the next jump caused a sharp collapse.
 STAGE4_CURRICULUM_WINDOW = 40
 STAGE4_ROLLBACK_MIN_EPISODES = 100
 
@@ -474,7 +463,6 @@ STAGE6_CURRICULUM_PHASES = (
         "fire_rate_scale": 0.55,
         "first_shot_delay_steps": 90,
         "max_active_projectiles": 1,
-        # 6A should prove the bot can win light duels reliably before pressure rises.
         "required_success": 0.70,
         "required_metric": 0.62,
         "max_death_rate": 0.35,
@@ -502,9 +490,7 @@ STAGE6_CURRICULUM_PHASES = (
         "phase_index": 3,
         "enemy_can_move": True,
         "enemy_can_shoot": True,
-        # Hard bridge: more sustained fire than 6B, but still capped so the
-        # policy can learn dodging under combat instead of collapsing into
-        # immediate full-pressure death loops.
+
         "fire_rate_scale": 0.85,
         "first_shot_delay_steps": 20,
         "max_active_projectiles": 3,
@@ -519,8 +505,7 @@ STAGE6_CURRICULUM_PHASES = (
         "phase_index": 4,
         "enemy_can_move": True,
         "enemy_can_shoot": True,
-        # Final full open-arena duel.  Official Stage 6 validation/best saving
-        # only happens here.
+
         "fire_rate_scale": 1.00,
         "first_shot_delay_steps": 0,
         "max_active_projectiles": 99,
@@ -541,8 +526,7 @@ STAGE7_CURRICULUM_PHASES = (
         "phase_index": 1,
         "max_steps": 1200,
         "obstacle_count": 1,
-        # Stationary enemy forces the learner to recover line of sight instead
-        # of waiting for the stock bot to walk around the obstacle.
+
         "enemy_can_move": False,
         "enemy_can_shoot": True,
         "fire_rate_scale": 0.55,
@@ -571,7 +555,7 @@ STAGE7_CURRICULUM_PHASES = (
         "phase_index": 2,
         "max_steps": 1400,
         "obstacle_count": 2,
-        # Still stationary: the learner must actively find the firing angle.
+
         "enemy_can_move": False,
         "enemy_can_shoot": True,
         "fire_rate_scale": 0.65,
@@ -600,7 +584,7 @@ STAGE7_CURRICULUM_PHASES = (
         "phase_index": 3,
         "max_steps": 1600,
         "obstacle_count": 3,
-        # Transition phase: moving enemy returns, but pressure is still capped.
+
         "enemy_can_move": True,
         "enemy_can_shoot": True,
         "fire_rate_scale": 0.75,
@@ -629,7 +613,6 @@ STAGE7_CURRICULUM_PHASES = (
         "phase_index": 4,
         "max_steps": 1800,
         "obstacle_count": 4,
-        # Four-obstacle bridge before full final validation.
         "enemy_can_move": True,
         "enemy_can_shoot": True,
         "fire_rate_scale": 0.85,
@@ -676,10 +659,7 @@ STAGE7_CURRICULUM_PHASES = (
 
 STAGE8_CURRICULUM_WINDOW = 30
 
-# Intermediate Stage 8 phases are bridge phases, not final thesis validation.
-# They use lighter gate counts so the curriculum can move forward once the
-# behavior appears in deterministic evaluation. The final 8F phase keeps the
-# stricter three-check gate.
+
 STAGE8_CURRICULUM_PHASES = (
     {
         "phase": "8A",
@@ -795,9 +775,7 @@ STAGE8_CURRICULUM_PHASES = (
         "max_avg_empty_ammo_steps": 500.0,
         "max_avg_no_los_shot_rate": 0.35,
         "max_avg_no_los_shot_attempts": 8.0,
-        # 8E is reload endurance. Obstacle-control diagnostics are logged, but
-        # they should not be the main promotion blocker here. 8F is the harder
-        # integrated obstacle + enemy-fire validation.
+
         "max_avg_blind_rotation_steps": 9999.0,
         "max_avg_too_close_steps": 9999.0,
         "max_avg_danger_close_steps": 9999.0,
@@ -836,14 +814,7 @@ STAGE8_CURRICULUM_PHASES = (
 
 
 class StageTrainingCallback(BaseCallback):
-    """PPO monitor, validator, checkpoint writer, and curriculum gatekeeper.
 
-    Stable-Baselines3 performs PPO rollout collection and policy updates.  This
-    callback owns the thesis-specific curriculum logic: it logs episode metrics,
-    evaluates on validation scenarios, saves best models only through validation,
-    and unlocks the next stage only after consecutive validation success plus
-    previous-skill retention checks.
-    """
 
     def __init__(
         self,
@@ -873,12 +844,10 @@ class StageTrainingCallback(BaseCallback):
         if self.stage.stage_id == "stage3" and self.eval_episodes_per_check < 25:
             self.eval_episodes_per_check = 25
         if self.stage.stage_id == "stage6" and self.eval_episodes_per_check < 15:
-            # Stage 6 validation was too seed-sensitive with very small batches.
-            # Use a slightly larger batch to reduce noisy good-check resets.
+
             self.eval_episodes_per_check = 15
         if self.stage.stage_id == "stage7" and self.eval_episodes_per_check < 15:
-            # Stage 7 validation is also seed-sensitive because obstacle layouts
-            # change line of sight, pathing, and blocked-shot opportunities.
+
             self.eval_episodes_per_check = 15
         self.success_window_size = int(success_window_size or self.stage.success_window_size)
         self.success_threshold = float(success_threshold or self.stage.success_threshold)
@@ -1236,11 +1205,7 @@ class StageTrainingCallback(BaseCallback):
         self._apply_stage7_curriculum_phase()
         self._apply_stage8_curriculum_phase()
 
-        # When a new stage is initialized from a previous-stage PPO checkpoint,
-        # the model can already carry a large absolute num_timesteps value.
-        # Without rebasing this counter, the eval condition below can fire after
-        # the first visible env step, making the Pygame window look frozen while
-        # headless validation silently runs.
+
         model_timesteps = int(getattr(self.model, "num_timesteps", getattr(self, "num_timesteps", 0)) or 0)
         if self.last_eval_timestep <= 0 and model_timesteps > 0:
             self.last_eval_timestep = model_timesteps
@@ -1747,9 +1712,7 @@ class StageTrainingCallback(BaseCallback):
         if self.stage6_curriculum_phase < len(STAGE6_CURRICULUM_PHASES) - 1:
             return
 
-        # Candidate checkpoints are not official best models. They preserve a
-        # near-pass policy when Stage 6 repeatedly reaches the validation border
-        # but misses certification because of one noisy evaluation batch.
+        
         near_pass = (
             self.consecutive_good_eval_checks >= max(1, self.required_consecutive_checks - 1)
             or self.last_validation_score >= 0.85
@@ -2784,17 +2747,14 @@ class StageTrainingCallback(BaseCallback):
         if good_check:
             self.consecutive_good_eval_checks += 1
         elif self.stage.stage_id == "stage6" and enough_history and curriculum_final_phase:
-            # Stage 6 has high seed variance. Do not throw away a 3/5 or 4/5
-            # validation streak because of one near-miss batch, but still reset
-            # on genuinely poor evaluations.
+     
             near_miss = self.last_eval_success_rate >= 0.60 and self.last_validation_score >= 0.65
             if near_miss:
                 self.consecutive_good_eval_checks = max(0, self.consecutive_good_eval_checks - 1)
             else:
                 self.consecutive_good_eval_checks = 0
         elif self.stage.stage_id == "stage7" and enough_history and curriculum_final_phase:
-            # Final obstacle layouts are seed-sensitive because LOS, blocked shots,
-            # and pathing failures interact. Decay near misses, but reset bad checks.
+            
             near_miss = self.last_eval_success_rate >= 0.55 and self.last_validation_score >= 0.60
             if near_miss:
                 self.consecutive_good_eval_checks = max(0, self.consecutive_good_eval_checks - 1)
@@ -2834,8 +2794,7 @@ class StageTrainingCallback(BaseCallback):
             summary["good_checks"] = self.consecutive_good_eval_checks
             summary["required_good_checks"] = self.required_consecutive_checks
 
-        # Log validation score and good-check state after the whole evaluation
-        # batch is summarized; otherwise each row would only have a placeholder.
+
         for row in eval_rows:
             row["validation_score"] = self._round(self.last_validation_score)
             if self.stage.stage_id == "stage8":
@@ -3030,8 +2989,7 @@ class StageTrainingCallback(BaseCallback):
 
         success_rate = means.get("success", 0.0)
         mean_stage_metric = means.get("stage_success_metric", 0.0)
-        # The rolling success rate is the hard gate. The validation score is only
-        # used to decide which candidate checkpoint is the best so far.
+
         validation_score = 0.70 * success_rate + 0.30 * min(1.0, mean_stage_metric)
         criteria_summary, criteria_text = self._criteria_summary(infos)
         return {

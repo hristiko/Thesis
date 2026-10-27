@@ -27,13 +27,7 @@ def desired_combat_position(
     ideal_range: float,
     agent_radius: float = PLAYER_RADIUS_PX,
 ) -> Vec2:
-    """Choose a reachable point near the enemy at approximately combat range.
-
-    This is not a controller. It produces only a reward/diagnostic target. The
-    implementation is deliberately grid/A*-friendly and no longer depends on a
-    separate navigation-mesh abstraction. Near corners it prefers the best visible feasible point
-    instead of forcing a large wall buffer that can trap the learner.
-    """
+   
     dx = learner_pos.x - enemy_pos.x
     dy = learner_pos.y - enemy_pos.y
     base_angle = math.atan2(dy, dx) if abs(dx) + abs(dy) > 1e-6 else 0.0
@@ -55,8 +49,7 @@ def desired_combat_position(
         boundary_penalty = _boundary_penalty(candidate, world, agent_radius)
         angle_penalty = min(abs(offset), math.pi) * 12.0
         range_error = abs(candidate.distance_to(enemy_pos) - ideal_range)
-        # Range is important, but near map edges exact ideal range can be
-        # impossible. Do not let range error dominate feasibility and visibility.
+        
         score = distance_from_learner + line_of_sight_penalty + boundary_penalty + angle_penalty + range_error * 0.18
         if score < best_score:
             best_score = score

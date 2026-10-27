@@ -91,7 +91,7 @@ def update_skill_table_after_stage(
     checkpoint_path: str | None,
     learned: bool,
 ) -> dict[str, dict[str, Any]]:
-    """Store a validated stage result without deleting future skills."""
+   
     table = deepcopy(skill_table)
     stage = get_stage(stage_id)
     skill_name = stage.learning_skill
@@ -109,10 +109,7 @@ def update_skill_table_after_stage(
 
 
 def skill_table_feature_vector(skill_table: dict[str, dict[str, Any]]) -> list[float]:
-    """Compact stable feature vector appended to partial observations.
-
-    Each skill contributes two values: a normalized status code and an active flag.
-    """
+    
     features: list[float] = []
     for skill_name in FULL_SKILL_ORDER:
         entry = skill_table.get(skill_name, {})

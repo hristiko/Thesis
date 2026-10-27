@@ -45,14 +45,11 @@ def _read_human_command(player: Agent, renderer: Renderer | None = None) -> Agen
             pygame.Rect(0, 0, renderer.screen.get_width(), renderer.screen.get_height()),
         )
 
-        # Clamp to the visible gameplay square. The HUD/outside bars should not
-        # produce unexpected aim angles.
+        
         mouse_x = max(view_rect.left, min(mouse_x, view_rect.right - 1))
         mouse_y = max(view_rect.top, min(mouse_y, view_rect.bottom - 1))
 
-        # In follow-camera mode the human player is fixed at the viewport center.
-        # Aim should therefore be based on cursor direction from that center,
-        # not on raw/full-map world coordinates.
+        
         dx = mouse_x - view_rect.centerx
         dy = mouse_y - view_rect.centery
     else:
@@ -161,13 +158,7 @@ def _obstacles_overlap_with_margin(a: RectObstacle, b: RectObstacle, margin: flo
 
 
 def _add_final_eval_obstacles(layout) -> None:
-    """
-    Add extra obstacles only for final 8D evaluation tests.
-
-    The candidates are filtered against every learner/enemy spawn point so the
-    human player and the RL bot do not spawn directly beside an obstacle and get
-    stuck before the fight starts. This does not modify training maps.
-    """
+    
     base_obstacles = list(getattr(layout, "obstacles", []))
 
     spawn_points: list[tuple[float, float]] = []
@@ -509,8 +500,7 @@ def _run_bot_vs_bot_round_loop(
                 elif event.agent_id == red_agent.agent_id:
                     red_killed_blue = True
 
-        # Fallback: if both are dead but only one kill event was reported,
-        # still respawn both so the match cannot get stuck.
+        
         blue_dead = not blue_agent.is_alive
         red_dead = not red_agent.is_alive
 

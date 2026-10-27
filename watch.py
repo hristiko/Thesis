@@ -1,10 +1,4 @@
-"""Watch a trained MaskablePPO/PPO model play the curriculum environment visually.
 
-Examples:
-    python watch.py --stage stage6
-    python watch.py --stage stage8 --show-rays
-    python watch.py --checkpoint checkpoints/curriculum_masked_ppo_v3/stage6/bestBotStage6.zip --stage stage6
-"""
 from __future__ import annotations
 
 import argparse

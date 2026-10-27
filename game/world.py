@@ -88,12 +88,7 @@ class Pickup:
 
 
 class World:
-    """Engine truth for the shooter simulation.
-
-    Exact geometry and hidden positions live here. RL observations are built by
-    querying detection/raycast functions, so the policy receives only visible or
-    detectable information rather than direct full-state coordinates.
-    """
+    
 
     def __init__(
         self,
@@ -194,7 +189,7 @@ class World:
             )
         )
 
-    # Compatibility wrappers. Internally they all delegate to game.detection.
+    
     def has_line_of_sight(self, start: Vec2, end: Vec2, step: float = 6.0) -> bool:
         return detection.has_line_of_sight(self, start, end, step_size=step)
 
@@ -271,9 +266,7 @@ class World:
             actual_amount = 0.0
 
             if pickup.kind == "health":
-                # Health regain is intentionally disabled for the final curriculum.
-                # Legacy health pickup templates may still exist for old sanity checks,
-                # but they no longer restore HP.
+                
                 useful = False
                 actual_amount = 0.0
 
@@ -405,13 +398,7 @@ class World:
         events: list[Event],
         hit_agent_id: str | None = None,
     ) -> None:
-        """Track same-tick projectile pass events for Stage 4 dodge learning.
-
-        A projectile can threaten an agent before it either hits, expires, or is
-        blocked.  We mark agents whose center corridor is threatened and emit an
-        immediate event when the projectile crosses behind that agent's center on
-        the same tick without hitting it.
-        """
+        
         if projectile.velocity.length() <= 1e-9:
             return
 
@@ -467,7 +454,7 @@ class World:
         end_position: Vec2,
         events: list[Event],
     ) -> None:
-        """Emit a safe-resolution event for threatened agents not yet rewarded."""
+        
         for agent_id in sorted(projectile.threatened_agent_ids):
             if agent_id in projectile.rewarded_agent_ids:
                 continue

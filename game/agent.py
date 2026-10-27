@@ -24,7 +24,6 @@ class AgentCommand:
     shoot: bool = False
     reload: bool = False
 
-    # Human-play helper: world-axis movement instead of heading-relative movement.
     use_world_movement: bool = False
     world_move_x: float = 0.0
     world_move_y: float = 0.0

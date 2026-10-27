@@ -116,7 +116,7 @@ def _rect_allows(rect: Any, purpose: str) -> bool:
 
 
 def point_hits_wall_or_obstacle(world: Any, point: Any, purpose: str = "movement") -> tuple[bool, str | None]:
-    """Point-vs-geometry query shared by sight, projectile, and debug code."""
+    
     x, y = _xy(point)
     if x <= 0.0 or y <= 0.0 or x >= float(world.width) or y >= float(world.height):
         return True, "arena_wall"
@@ -139,7 +139,7 @@ def circle_intersects_rect(center: Any, radius: float, rect: Any) -> bool:
 
 
 def circle_hits_wall_or_obstacle(world: Any, center: Any, radius: float, purpose: str = "movement") -> tuple[bool, str | None]:
-    """Circle-vs-geometry query used for agent movement and bot wall avoidance."""
+    
     x, y = _xy(center)
     if x - radius < 0.0 or y - radius < 0.0 or x + radius > world.width or y + radius > world.height:
         return True, "arena_wall"
@@ -159,7 +159,7 @@ def check_movement_path(
     radius: float,
     step_size: float = 4.0,
 ) -> MovementCheck:
-    """Swept movement: sample from start to intended end and stop at first block."""
+    
     start_xy = _xy(start)
     end_xy = _xy(intended_end)
     distance = _distance_xy(start_xy, end_xy)
@@ -187,7 +187,7 @@ def check_projectile_path(
     projectile_radius: float,
     step_size: float = 4.0,
 ) -> ProjectileCheck:
-    """Swept projectile collision so fast bullets cannot tunnel through objects."""
+    
     start_xy = _xy(start)
     end_xy = _xy(intended_end)
     distance = _distance_xy(start_xy, end_xy)
@@ -211,7 +211,7 @@ def check_projectile_path(
 
 
 def has_line_of_sight(world: Any, start: Any, end: Any, step_size: float = 6.0) -> bool:
-    """Line-of-sight query used by bots, rewards, UI, and observations."""
+    
     start_xy = _xy(start)
     end_xy = _xy(end)
     distance = _distance_xy(start_xy, end_xy)
@@ -228,7 +228,7 @@ def has_line_of_sight(world: Any, start: Any, end: Any, step_size: float = 6.0) 
 
 
 def check_pickup_overlap(world: Any, agent: Any) -> PickupOverlap:
-    """Pickup collision query shared by world updates and tests."""
+    
     for pickup in getattr(world, "pickups", []):
         if not getattr(pickup, "active", False):
             continue
@@ -251,11 +251,7 @@ def trace_ray(
     pickup_margin: float = 4.0,
     projectile_margin: float = 5.0,
 ) -> RayHit:
-    """Trace one observation ray and return the first object hit.
-
-    Per step the query order is wall/obstacle, enemy, pickup, projectile.  A wall
-    or sight-blocking obstacle therefore hides objects behind it.
-    """
+    
     ox, oy = _xy(origin)
     dx, dy = _xy(direction)
     length = math.sqrt(dx * dx + dy * dy)
@@ -383,7 +379,7 @@ def visible_pickups(world: Any, observer: Any) -> list[Any]:
 
 
 def nearest_wall_distance(world: Any, origin: Any, max_distance: float = 360.0, ray_count: int = 16, step_size: float = 8.0) -> float:
-    """Approximate distance to nearest sight-blocking wall/obstacle by radial probes."""
+    
     best = max_distance
     for index in range(ray_count):
         angle = (2.0 * math.pi) * index / ray_count
@@ -404,12 +400,7 @@ def nearest_wall_distance(world: Any, origin: Any, max_distance: float = 360.0, 
 
 
 def projectile_threat(world: Any, observer: Any, max_distance: float = 420.0, max_tti: float = 1.25) -> ProjectileThreat:
-    """Return the nearest enemy projectile and whether it is dangerous.
-
-    The danger flag is based on estimated closest approach, not hidden intent.  It
-    gives PPO enough partial information to learn dodging without receiving full
-    global state.
-    """
+    
     observer_xy = _xy(observer.position)
     best: ProjectileThreat | None = None
     best_key = float("inf")

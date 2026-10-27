@@ -118,9 +118,7 @@ STAGE7_ONE_OBSTACLE_VARIANTS: list[list[RectObstacle]] = [
     [RectObstacle(430, 170, 140, 320)],
 ]
 
-# Stage 8 obstacle bridge maps. These deliberately use easy one-obstacle
-# variants and spawn pairs so 8D matches the curriculum definition
-# instead of accidentally becoming a multi-obstacle Stage 7/8E task.
+
 STAGE8_OBSTACLE_BRIDGE_SPAWNS = [
     OBSTACLE_STAGE_SPAWNS[0],
     OBSTACLE_STAGE_SPAWNS[1],
@@ -295,14 +293,7 @@ def build_layout(
         return MapLayout(ARENA_WIDTH, ARENA_HEIGHT, obstacles=list(obstacles), pickups=list(pickups), spawns=list(spawns), spawn_pair_ids=list(range(len(spawns))))
 
     if stage_id == "stage8":
-        # Stage 8 is reload-endurance combat with sequential enemy waves.
-        # 8A/8B are open arena. 8C/8D/8E/8F use controlled one-obstacle
-        # bridge layouts so the map difficulty matches training/callbacks.py.
-        #
-        # This avoids the previous mismatch where 8D was defined as a simple
-        # one-obstacle bridge in the curriculum but build_layout could still
-        # sample harder multi-obstacle maps, causing deterministic evaluation
-        # to freeze or collide around obstacles before combat started.
+        
         phase_index = 5 if validation and stage8_phase_index is None else int(stage8_phase_index or 1)
         phase_index = max(1, min(6, phase_index))
 

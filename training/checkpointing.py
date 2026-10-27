@@ -75,12 +75,7 @@ def save_training_checkpoint(
     env: Any | None = None,
     reason: str = "periodic",
 ) -> Path:
-    """Save MaskablePPO/PPO model plus resume metadata.
-
-    SB3's MaskablePPO/PPO .zip contains policy/value-network weights and optimizer state.
-    The .pt file stores curriculum/training metadata, counters, RNG state, and
-    the path to that model file.
-    """
+ 
     checkpoint_path = Path(checkpoint_path)
     model_path = Path(model_path)
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -109,7 +104,7 @@ def save_training_checkpoint(
     }
     torch.save(payload, checkpoint_path)
 
-    # Also keep a convenient global latest.pt for the requested CLI pattern.
+    
     GLOBAL_LATEST_TRAINING_STATE.parent.mkdir(parents=True, exist_ok=True)
     try:
         if checkpoint_path.resolve() != GLOBAL_LATEST_TRAINING_STATE.resolve():

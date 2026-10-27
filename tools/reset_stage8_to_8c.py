@@ -6,14 +6,14 @@ import sys
 
 try:
     import torch
-except Exception as exc:  # pragma: no cover
+except Exception as exc:  
     torch = None
     TORCH_IMPORT_ERROR = exc
 else:
     TORCH_IMPORT_ERROR = None
 
 
-PHASE_INDEX_8C = 2  # zero-based index in STAGE8_CURRICULUM_PHASES
+PHASE_INDEX_8C = 2  
 PHASE_NAME = "8C"
 DEFAULT_STATE_PATH = Path("checkpoints/curriculum_masked_ppo_v3/stage8/interruptedTrainingStateStage8.pt")
 STATS_PATH = Path("stage_stats_curriculum_masked_ppo_v3.json")
@@ -79,8 +79,6 @@ def reset_stats(path: Path) -> bool:
         return False
     data = json.loads(path.read_text(encoding="utf-8"))
 
-    # The project has used more than one stats layout during development. Update
-    # both the top-level stage8 object and stages.stage8 when present.
     targets = []
     if isinstance(data.get("stage8"), dict):
         targets.append(data["stage8"])

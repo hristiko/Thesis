@@ -35,18 +35,12 @@ def always_shoot_action() -> np.ndarray:
 
 
 def action_count(stage_id: str | None = None) -> int:
-    # Kept for compatibility with old UI/debug text. PPO now uses MultiDiscrete.
+    
     return int(np.prod(ACTION_NVECS))
 
 
 def stage_action_mask(stage_id: str, shoot_allowed: bool | None = None, reload_allowed: bool | None = None) -> np.ndarray:
-    """Flat MaskablePPO-compatible mask for the current stage.
-
-    No-op remains valid in every branch, while locked branches expose only
-    their no-op choice. ``shoot_allowed`` is used by Stage 2 to block wasteful
-    shoot commands during cooldown/reload without changing the global action
-    interface used by later stages.
-    """
+    
     stage = get_stage(stage_id)
     enabled = stage.actions_enabled
     shoot_enabled = enabled["shoot"] if shoot_allowed is None else enabled["shoot"] and bool(shoot_allowed)
@@ -73,7 +67,7 @@ def stage_action_mask(stage_id: str, shoot_allowed: bool | None = None, reload_a
 
 
 def sample_valid_action(stage_id: str, rng: Any | None = None) -> np.ndarray:
-    """Sample from the stage mask for random baselines and sanity checks."""
+    
     flat_mask = stage_action_mask(stage_id)
     result: list[int] = []
     offset = 0

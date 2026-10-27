@@ -14,11 +14,7 @@ def astar(
     is_walkable: Callable[[GridCell], bool],
     neighbors: Callable[[GridCell], Iterable[GridCell]],
 ) -> list[GridCell]:
-    """Small dependency-free A* over grid cells.
-
-    The function returns an empty list when no path exists.  Diagonal movement is
-    supported by the neighbor provider; diagonal edges naturally cost sqrt(2).
-    """
+    
     if start == goal:
         return [start]
     if not is_walkable(start) or not is_walkable(goal):

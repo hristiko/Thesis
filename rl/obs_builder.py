@@ -12,12 +12,7 @@ from training.skill_table import FULL_SKILL_ORDER, build_skill_table, skill_tabl
 
 
 class ObsBuilder:
-    """Stage-aware observation builder for the PPO learner.
 
-    Later combat stages keep the richer partial-observation vector. Stage 1 uses a
-    much smaller aim-tracking vector so the policy cannot overfit ammo, pickup,
-    projectile, raycast, or skill-table noise while learning rotation control.
-    """
 
     RAY_COUNT = 32
     MAX_RAY_LENGTH = 380.0
@@ -44,8 +39,7 @@ class ObsBuilder:
         + SKILL_FEATURES
     )
 
-    # sin/cos/signed/absolute aim error, relative position/distance, relative
-    # velocity, learner heading, enemy heading, line-of-sight, alignment flag.
+    
     STAGE1_OBS_DIM = 15
 
     def __init__(self):
@@ -53,8 +47,7 @@ class ObsBuilder:
 
     @classmethod
     def obs_dim_for_stage(cls, stage_id: str) -> int:
-        # Stage 2 intentionally keeps the Stage 1 aim vector so the validated
-        # rotation policy can be loaded directly instead of only partially copied.
+        
         return cls.STAGE1_OBS_DIM if normalize_stage_id(stage_id) in {"stage1", "stage2"} else cls.OBS_DIM
 
     def build(
@@ -70,8 +63,7 @@ class ObsBuilder:
         return self._build_full(observer, target, world, skill_table, normalize_stage_id(stage_id or "stage1"))
 
     def _build_stage1(self, observer: Agent, target: Agent, world: World) -> np.ndarray:
-        # Stage 1 is supervised by the target geometry, not noisy combat/resource
-        # state. Frame stacking supplies short-term memory for smooth tracking.
+        
         self.last_debug_rays = []
         dx = target.position.x - observer.position.x
         dy = target.position.y - observer.position.y

@@ -18,23 +18,12 @@ from training.skill_table import build_skill_table
 
 
 class StockBot:
-    """Built-in scripted enemy with simple wall-stuck recovery.
-
-    The movement logic is split into two layers:
-    - strategist methods choose a high-level movement intent vector;
-    - driver methods turn that intent into safe local movement commands.
-
-    Profiles remain deliberately understandable for a thesis project.  They
-    provide curriculum pressure without becoming a second RL system.
-    """
+    
 
     _TEST_OFFSETS_DEG = (0, 18, -18, 35, -35, 55, -55, 75, -75, 95, -95, 120, -120, 150, -150, 180)
     _BASIC_TEST_OFFSETS_DEG = (0, 18, -18, 35, -35, 55, -55, 75, -75, 95, -95, 140, -140)
     _ZERO_VECTOR = Vec2(0.0, 0.0)
 
-    # Low and profile-scoped by design.  Early precision stages stay fully
-    # deterministic; later movement/combat profiles can opt into tiny safe
-    # variation without changing game rules.
     _JITTER_CHANCE_BY_PROFILE = {
         "orbit_no_shoot": 0.0,
         "slow_shooter": 0.0,
@@ -122,10 +111,7 @@ class StockBot:
             return self._tick_duel(target, accuracy=0.10, reaction_mod=3, conservative_reload=False)
         return self._tick_duel(target, accuracy=0.12, reaction_mod=2, conservative_reload=True)
 
-    # ------------------------------------------------------------------
-    # Profile ticks: profile-specific aim, shooting, reload, and rotation
-    # stay here.  Movement is delegated to strategist + driver helpers.
-    # ------------------------------------------------------------------
+
 
     def _tick_orbit_no_shoot(self, target: Agent) -> AgentCommand:
         to_target, distance, angle_to_target, angle_diff, line_of_sight = self._target_geometry(target)
@@ -148,11 +134,7 @@ class StockBot:
     def _tick_slow_shooter(self, target: Agent) -> AgentCommand:
         _, distance, _, angle_diff, line_of_sight = self._target_geometry(target)
 
-        # Stage 4 is the projectile-dodging curriculum.  Validation spawns can
-        # begin around 650-720 px apart, so the old 520 px shooting limit let the
-        # learner avoid the whole projectile situation.  Keep the profile simple,
-        # but allow Stage 4 shots from farther away so projectiles actually cross
-        # the learner's area and dodging can be learned/evaluated.
+        
         stage4_mode = getattr(self.world, "stage_id", "") == "stage4"
         max_shoot_distance = 950.0 if stage4_mode else 520.0
         aim_dead_zone = 0.07 if stage4_mode else 0.06
@@ -187,8 +169,7 @@ class StockBot:
         intent = self._duel_movement_intent(distance, angle_to_target, line_of_sight)
         direction = self._drive_movement_intent(intent, target=target, current_line_of_sight=line_of_sight)
 
-        # Preserve the old recovery/fallback behavior when line of sight is lost
-        # and the first local-steering pass cannot find a useful direction.
+        
         if direction.length() <= 1e-9 and not line_of_sight:
             direction = self._drive_movement_intent(self._angle_to_unit(angle_to_target), target=target, current_line_of_sight=line_of_sight)
         if direction.length() <= 1e-9 and not line_of_sight:
@@ -211,11 +192,7 @@ class StockBot:
 
         return AgentCommand(move_idx=move_idx, strafe_idx=strafe_idx, rot_idx=rotate, shoot=shoot, reload=reload_now)
 
-    # ------------------------------------------------------------------
-    # Strategist layer: profile-specific movement intent only.
-    # These methods do not probe walls, score candidate directions, or convert
-    # movement into relative input commands.
-    # ------------------------------------------------------------------
+    
 
     def _orbit_movement_intent(self, distance: float, angle_to_target: float) -> Vec2:
         if distance > self.preferred_range + 80.0:
@@ -248,11 +225,7 @@ class StockBot:
 
         return self._angle_to_unit(angle_to_target + (self._nav_sign * math.radians(65.0)))
 
-    # ------------------------------------------------------------------
-    # Driver layer: local steering, safety checks, and input conversion support.
-    # It receives a world-space intent vector and adjusts it only for clearance,
-    # wall safety, and optional local line-of-sight preservation.
-    # ------------------------------------------------------------------
+    
 
     def _drive_movement_intent(
         self,
@@ -325,9 +298,7 @@ class StockBot:
         if jitter_chance <= 0.0 or self._random() >= jitter_chance:
             return best
 
-        # Only allow tiny variation when the alternative is fully safe and still
-        # competitively scored.  This prevents random wall collisions or chaotic
-        # training behavior.
+        
         alternatives = [
             candidate
             for candidate in candidates[1:3]
@@ -337,9 +308,7 @@ class StockBot:
             return best
         return alternatives[0] if len(alternatives) == 1 or self._random() < 0.5 else alternatives[1]
 
-    # ------------------------------------------------------------------
-    # Shared helpers.
-    # ------------------------------------------------------------------
+    
 
     def _target_geometry(self, target: Agent) -> tuple[Vec2, float, float, float, bool]:
         to_target = target.position - self.agent.position
@@ -439,17 +408,12 @@ class StockBot:
         if charges is not None and charges <= 0:
             return False
 
-        # Stage 8 mirrors the learner's resource-management setting for the
-        # scripted enemy: the enemy also has a finite number of reload reserves
-        # and is allowed to reload tactically before the magazine is empty.  This
-        # keeps pressure fair without turning the enemy into an unlimited-ammo bot.
+        
         if getattr(self.world, "stage_id", "") == "stage8":
             target_ammo = max(1, int(round(float(self.agent.max_ammo) / 3.0)))
             if self.agent.ammo == 0:
                 return True
-            # Stage 8 keeps the normal Glock magazine. The scripted enemy uses
-            # the same simple tactical rule as before: reload around one-third
-            # magazine, preferably when line of sight is broken.
+            
             if self.agent.ammo <= target_ammo and not line_of_sight:
                 return True
             if self.agent.ammo < target_ammo:
@@ -462,8 +426,6 @@ class StockBot:
             return True
         return False
 
-    # Backward-compatible helper names kept for any local call sites or tests.
-    # They now delegate to the Driver layer.
     def _choose_move_direction(self, desired_angle: float, target: Agent, current_line_of_sight: bool, prefer_line_of_sight: bool, keep_range: bool) -> Vec2:
         return self._drive_movement_intent(self._angle_to_unit(desired_angle), target=target, current_line_of_sight=current_line_of_sight)
 
@@ -497,8 +459,7 @@ class StockBot:
 
 
 class ModelBot:
-    """Uses a trained SB3 MaskablePPO/PPO actor-critic model as a gameplay bot."""
-
+    
     def __init__(self, model_path: str | Path, stage_id: str, agent: Agent, world: World, target_id: str):
         from training.model_utils import load_any_sb3_model, predict_with_action_masks
 
@@ -568,12 +529,7 @@ class ModelBot:
         return ray.hit_type == detection.HIT_ENEMY and ray.hit_agent_id == target.agent_id
 
     def _stage8_shoot_allowed_now(self, target: Agent | None = None) -> bool:
-        """Physical Stage 8 shoot availability for Watch/Test.
-
-        Tactical discipline is learned through the Stage 8 reward.  The visual
-        runner must not hide bad tactical choices that were available during the
-        final retraining setup.
-        """
+        
         target = target or self._target()
         if target is None:
             return False
@@ -585,11 +541,7 @@ class ModelBot:
         )
 
     def _stage8_reload_allowed_now(self) -> bool:
-        """Physical Stage 8 reload availability for Watch/Test.
-
-        Reloading too early or too late remains selectable and is penalized by
-        the learned environment.  Only impossible reloads are masked.
-        """
+        
         if self.stage_id != "stage8" or not self.agent.is_alive:
             return True
         if getattr(self.agent, "reloading", False):
@@ -647,15 +599,11 @@ class ModelBot:
         stacked_obs = np.concatenate(list(self._frames), axis=0).astype(np.float32)
         self.world.debug_rays = list(self.obs_builder.last_debug_rays)
 
-        # Use this ModelBot as the mask provider. For Stage 8 the mask is now
-        # physical-only, matching the final retraining setup: bad tactical
-        # choices are available and must be avoided by the learned policy.
+       
         action, _ = self._predict_with_action_masks(self.model, stacked_obs, self, deterministic=True)
         command = action_to_command(self.stage_id, action)
 
-        # Runtime guard only for physically unavailable actions.  Stage 8 no
-        # longer blocks tactical mistakes such as shooting without LOS or
-        # reloading early; those choices are handled by training rewards.
+        
         if self.stage_id == "stage8":
             if command.shoot and not self._stage8_shoot_allowed_now(target):
                 command.shoot = False
